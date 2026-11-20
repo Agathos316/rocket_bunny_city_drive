@@ -26,7 +26,7 @@ const check = (ok, message) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${message}
 
 try {
   await new Promise((r) => setTimeout(r, 700));
-  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
@@ -77,6 +77,50 @@ try {
   await page.waitForTimeout(300);
   check((await page.evaluate(() => window.rocketBunny.game.player.model)) === 'supra', 'car selection changes the model');
 
+  // ---- sound: measure what the Web Audio graph actually outputs (headless Chromium has a silent sink, but the
+  // graph still runs, so an analyser on the master output sees the real signal). This proves the synthesis
+  // responds to the game; it cannot judge whether it sounds good.
+  const ctxState = await page.evaluate(() => window.rocketBunny.game.audio.ctx?.state);
+  check(ctxState === 'running', `audio context is running after the first key press (${ctxState})`);
+  // The software-GL game loop hogs the main thread (setTimeout drifts by seconds), so stop it for the measurements
+  // and feed the audio manager the same kind of state the game does.
+  await page.evaluate(() => window.rocketBunny.game.stop());
+  const drive = (s) => page.evaluate((s) => {
+    const a = window.rocketBunny.game.audio;
+    for (let i = 0; i < 20; i++) a.update(0.016, { speed: 0, throttle: 0, brake: 0, steer: 0, airborne: false, gx: 50, gz: 50, ...s });
+  }, s);
+  const measure = (wait = 900) => page.evaluate(async (ms) => {
+    const a = window.rocketBunny.game.audio, an = a.tap();
+    await new Promise((r) => setTimeout(r, ms));
+    const td = new Float32Array(an.fftSize); an.getFloatTimeDomainData(td);
+    let sum = 0; for (const x of td) sum += x * x;
+    const fr = new Float32Array(an.frequencyBinCount); an.getFloatFrequencyData(fr);
+    const hz = a.ctx.sampleRate / an.fftSize;
+    let best = -Infinity, bi = 0;   // strongest component between 30 and 400 Hz: the engine note
+    for (let i = Math.ceil(30 / hz); i < 400 / hz; i++) if (fr[i] > best) { best = fr[i]; bi = i; }
+    return { rms: Math.sqrt(sum / td.length), enginePeakHz: bi * hz };
+  }, wait);
+  await drive({ speed: 0, throttle: 0 });
+  const idle = await measure(1200);
+  await drive({ speed: 45, throttle: 1 });
+  const fast = await measure(1200);
+  console.log(`info idle: rms ${idle.rms.toFixed(4)}, engine peak ${idle.enginePeakHz.toFixed(0)} Hz | 45 m/s: rms ${fast.rms.toFixed(4)}, engine peak ${fast.enginePeakHz.toFixed(0)} Hz`);
+  check(idle.rms > 0.0005, `idle is audible, not silent (rms ${idle.rms.toFixed(4)})`);
+  check(fast.rms > idle.rms * 1.1, `driving fast is louder than idling (${fast.rms.toFixed(4)} vs ${idle.rms.toFixed(4)})`);
+  check(fast.enginePeakHz > idle.enginePeakHz * 2, `engine note is higher at speed (${fast.enginePeakHz.toFixed(0)} vs ${idle.enginePeakHz.toFixed(0)} Hz)`);
+  await page.evaluate(() => window.rocketBunny.game.audio.setEnabled(false));
+  await page.waitForTimeout(500);
+  const muted = await measure(300);
+  check(muted.rms < idle.rms * 0.1, `muting silences the output (rms ${muted.rms.toFixed(5)})`);
+  await page.evaluate(() => window.rocketBunny.game.audio.setEnabled(true));
+  await drive({ speed: 0, throttle: 0 });
+  await page.waitForTimeout(800);
+  const quiet = await measure(100);
+  await page.evaluate(() => window.rocketBunny.game.audio.crash());
+  const crash = await measure(80);
+  check(crash.rms > quiet.rms * 2, `a crash is a loud event (rms ${crash.rms.toFixed(3)} vs ${quiet.rms.toFixed(3)} before)`);
+  await page.evaluate(() => window.rocketBunny.game.start());
+
   // far-away streaming in a real renderer: the highway and the second city
   for (const [gx, gz, name] of [[800, 70, 'highway'], [1300, 70, 'second-city']]) {
     await page.evaluate(([x, z]) => {
@@ -89,11 +133,17 @@ try {
       });
     }, [gx, gz]);
     // software GL is slow and the world streams one cell per frame, so wait for it rather than for a fixed time
-    await page.waitForFunction(() => window.rocketBunny.game.chunks.cells.size >= 49, null, { timeout: 90000 }).catch(() => {});
+    await page.waitForFunction(() => {   // every cell within the streaming radius (3) of the player is present
+      const g = window.rocketBunny.game, i0 = Math.floor(g.player.gx / 100), j0 = Math.floor(g.player.gz / 100);
+      for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++) if (!g.chunks.get(i0 + i, j0 + j)) return false;
+      return true;
+    }, null, { timeout: 120000 }).catch(() => {});
     await page.waitForTimeout(500);
     await page.screenshot({ path: OUT + `4-${name}.png` });
     const s = await stats();
     check(s.cells >= 49 && s.crashes === 0, `${name}: ${s.cells} cells streamed in, ${s.crashes} crashes`);
+    const zone = await page.evaluate(() => window.rocketBunny.game.audio.zone);
+    check(name === 'second-city' ? zone === 'city' : zone !== 'city', `${name}: ambience zone is '${zone}'`);
   }
   const fps = await page.evaluate(() => new Promise((res) => {
     let n = 0; const t0 = performance.now();

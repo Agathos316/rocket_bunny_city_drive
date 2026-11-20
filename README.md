@@ -27,9 +27,25 @@ Pages URL. Any static file server works too.
 | ↑ | Accelerate |
 | ↓ | Brake, then reverse |
 | ← → | Steer (combine freely with ↑ / ↓) |
-| ⚙ (bottom left) | Settings: choose your car, set the amount of traffic |
+| ⚙ (bottom left) | Settings: choose your car, set the amount of traffic, sound on/off and volume |
 
 Cars: Toyota Supra, Ford Mustang, Porsche 911, Nissan GT-R, Honda Civic Type R — all with the Rocket Bunny kit.
+
+## Sound
+
+All sound is synthesised live with the browser's Web Audio API (`src/audio.js`); there are no audio files and no
+dependencies.
+
+- **Engine:** pitch follows your speed through a five-speed gearbox (it climbs, then drops at each shift) and is
+  duller when you lift off the throttle.
+- **Road and wind:** road noise and wind grow with speed and stop while you are airborne; tyres squeal when you
+  corner or brake hard at speed.
+- **Ambience:** a bed for each environment (city rumble, countryside wind and birds, desert wind) that crossfades
+  as you drive between them.
+- **Impacts:** a crash, a building thud (louder the harder you hit), a speed-bump thump and a landing.
+
+Browsers only allow sound after you press a key or click, so it starts on your first key press. The Sound
+checkbox and Volume slider are in the settings panel. Sound also pauses while the tab is hidden.
 
 ## What is in the world
 
@@ -55,6 +71,7 @@ src/
   renderer.js           WebGL renderer setup
   environment.js        sky, sun + shadows, fog, ground
   assets.js             materials and procedural textures
+  audio.js              AudioManager: procedural engine, road, ambience and impact sounds
   collisions.js         blocks, bumps, parked cars, traffic
   vehicles/             car models (lofted shells), car factory, player car + physics, parked cars
   traffic/              TrafficManager: lanes, turns, following, traffic lights, recycling
@@ -82,6 +99,7 @@ vendor/three/           three.js r128 (ES module build + BufferGeometryUtils), M
   speed, three collision circles for the car, rounded-rectangle tests for buildings. There is no physics
   engine: the ground is an analytic height function and the game needs no rigid-body dynamics, so an engine would
   add weight without adding anything you can see.
+- **Audio.** `AudioManager` is fed the car's state every frame and told about impacts by `Game`. It is inert where Web Audio is missing, and takes an injectable context so it can be tested.
 - **Input.** `InputManager.read()` returns `{ throttle, brake, steer }`. A game controller can be added later
   with `input.addSource(() => ({ throttle, brake, steer }))` without touching the car or the game loop.
 
@@ -97,7 +115,7 @@ npm test             # Node's built-in runner, no dependencies, ~15 s
 npm run test:browser # Playwright + headless Chromium smoke test (see below)
 ```
 
-`npm test` runs 41 tests:
+`npm test` runs 59 tests:
 
 - the pure world functions (zones, rivers, stations, heights, the warp and its inverse, terrain carved below roads);
 - the whole `Game` headless against a stub DOM and a fake renderer: boot, acceleration and money, up+left combining,
@@ -105,11 +123,17 @@ npm run test:browser # Playwright + headless Chromium smoke test (see below)
   crashing you, building collisions, speed-bump hops, the traffic slider, traffic speed spread and smooth turns,
   traffic lights and cars stopping at red, streaming through highways, desert and the next city, geometry free of
   NaNs across every kind of cell, all five car models, the settings panel, HUD, camera position, input handling
-  and a two-minute random-driving soak.
+  and a two-minute random-driving soak;
+- the audio manager against a fake Web Audio context: engine pitch through the gears, zone detection, the graph
+  being built only after a gesture, squeal and ambience logic, birds only in the countryside, one-shot sounds
+  and their rate limit, mute and volume, pausing when hidden, and the game triggering the right sound for a crash,
+  wall hit, bump and landing.
 
 `npm run test:browser` starts the server, opens the game in headless Chromium, checks that the world streams in,
 the canvas is not blank, ↑ and ↑+← work, the settings panel and car selection work, the highway and second city
-stream in, and there are no console errors. It saves screenshots to `tests/browser/out/`. Playwright is not a
+stream in, and there are no console errors. It also measures the real Web Audio output with an analyser: idle is
+audible, the output is louder and the engine note higher at speed (about 32 Hz idling, 161 Hz at 45 m/s), muting
+silences it, and a crash is a loud event. It saves screenshots to `tests/browser/out/`. Playwright is not a
 project dependency (the game has none); install it with `npm i -D playwright && npx playwright install chromium`.
 
 ### What the tests do not show
@@ -119,7 +143,9 @@ project dependency (the game has none); install it with `npm i -D playwright && 
   shadow map refreshed every second frame, shared lamp materials) is by design, not by benchmark.
 - Visual quality was checked by looking at screenshots, not by automated image comparison.
 - Only Chromium has been tried. Firefox and Safari are untested.
-- There is no automated test for how the car *feels* to drive; that needs a person.
+- There is no automated test for how the car *feels* to drive, or for how the **sound** actually sounds. The audio
+  tests show the synthesis responds correctly to the game; they cannot judge whether it is pleasant or realistic.
+  The sounds are simple synthesis and have only been checked by measurement, never listened to.
 
 ## Differences from the single-file version
 
@@ -134,7 +160,8 @@ This is a port, not a redesign: the look, world and controls are meant to be the
 
 ## Known limitations
 
-- No sound, no minimap, no touch controls yet.
+- No horn, siren, music or sound for traffic cars, and no minimap or touch controls yet.
+- The sound settings are not remembered between visits.
 - Any crash (traffic, parked car, river) simply restarts you; there is no damage model.
 - Traffic only drives on straight grid lines and Bezier turns; there is no overtaking.
 

@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { installDom, fakeRenderer, fakeInput } from './helpers/dom.mjs';
+import { recordingAudio } from './helpers/audio.mjs';
 
 const dom = installDom();   // must happen before the game's modules are imported
 const { Game } = await import('../src/game.js');
@@ -26,9 +27,10 @@ function placeAt(game, gx, gz, gridHeading = 0) {
 function makeGame({ traffic } = {}) {
   dom.elements.clear();   // fresh UI elements, so listeners from earlier games in this file cannot fire
   const input = fakeInput();
-  const game = new Game({ renderer: fakeRenderer(), input, makeReflection: () => null });
+  const audio = recordingAudio();
+  const game = new Game({ renderer: fakeRenderer(), input, audio, makeReflection: () => null });
   if (traffic !== undefined) game.traffic.setCount(traffic, game.player);
-  return { game, input };
+  return { game, input, audio };
 }
 const run = (game, seconds) => { for (let t = 0; t < seconds; t += DT) game.update(DT); };
 const finite = (p) => ['x', 'z', 'h', 'v', 'y', 'gys', 'money', 'steer'].every((k) => Number.isFinite(p[k]));
@@ -459,4 +461,76 @@ test('long soak: two minutes of mixed driving never goes non-finite or throws', 
     if (!finite(game.player)) assert.fail(`player went non-finite at step ${i}`);
   }
   assert.ok(game.chunks.cells.size <= (2 * RAD + 3) ** 2);
+});
+
+test('sound: the game feeds the audio manager every frame and unlocks it on the first key or click', () => {
+  const { game, input, audio } = makeGame({ traffic: 0 });
+  input.value.throttle = 1;
+  run(game, 0.5);
+  const updates = audio.calls.filter((c) => c[0] === 'update');
+  assert.ok(updates.length >= 29);
+  const last = updates.at(-1)[2];
+  assert.equal(last.throttle, 1);
+  assert.ok(last.speed > 5);
+  assert.ok(Number.isFinite(last.gx) && Number.isFinite(last.gz));
+  dom.fireWindow('keydown', {});
+  dom.fireWindow('pointerdown', {});
+  assert.equal(audio.count('unlock'), 2);
+});
+
+test('sound: a crash, a wall hit, a bump and a landing each trigger their sound', () => {
+  // crash into a car in front
+  {
+    const { game, input, audio } = makeGame({ traffic: 1 });
+    const p = game.player, a = game.traffic.cars[0];
+    input.value.throttle = 1; run(game, 1);
+    const ahead = [p.gx + Math.sin(p.h) * 3, p.gz + Math.cos(p.h) * 3];
+    Object.assign(a, { x: ahead[0], z: ahead[1], speed: 0, cruise: 0, plan: null, turn: null });
+    game.traffic.pose(a);
+    game.update(DT);
+    assert.equal(audio.count('crash'), 1);
+  }
+  // hit a building at speed
+  {
+    const { game, audio } = makeGame({ traffic: 0 });
+    const half = C / 2 - 8 - 5, p = game.player;
+    const [wx, wz] = toWorld(0.5 * C + half - 4, 0.5 * C);
+    Object.assign(p, { x: wx, z: wz, h: -Math.PI / 2, v: 25 });
+    p.syncGrid();
+    game.update(DT);
+    assert.equal(audio.count('thud'), 1);
+    assert.equal(audio.count('crash'), 0);
+  }
+  // speed bump, then the landing
+  {
+    const { game, input, audio } = makeGame({ traffic: 0 });
+    const bump = [...game.chunks.cells.values()].flatMap((c) => c.bumps).find((b) => b.ax === 'z');
+    const p = game.player;
+    const [wx, wz] = toWorld(bump.x, bump.z + 8);
+    Object.assign(p, { x: wx, z: wz, h: Math.PI, v: 20 });
+    p.syncGrid();
+    input.value.throttle = 1;
+    for (let i = 0; i < 90; i++) game.update(DT);
+    assert.equal(audio.count('bump'), 1);
+    assert.equal(audio.count('landing'), 1);
+  }
+});
+
+test('sound: driving normally, or pushing against nothing, makes no impact sounds', () => {
+  const { game, input, audio } = makeGame({ traffic: 0 });
+  placeAt(game, 0, -4);
+  input.value.throttle = 1;
+  run(game, 1);
+  assert.equal(audio.count('crash') + audio.count('thud') + audio.count('landing'), 0);
+});
+
+test('sound: the sound checkbox and volume slider reach the audio manager', () => {
+  const { audio } = makeGame();
+  assert.equal(audio.count('setEnabled'), 0);
+  const box = dom.elements.get('snd'), vol = dom.elements.get('vol');
+  box.checked = false; box.dispatch('change');
+  vol.value = '25'; vol.dispatch('input');
+  assert.deepEqual(audio.calls.find((c) => c[0] === 'setEnabled'), ['setEnabled', false]);
+  assert.deepEqual(audio.calls.find((c) => c[0] === 'setVolume'), ['setVolume', 0.25]);
+  assert.equal(dom.elements.get('vol').value, '25');
 });

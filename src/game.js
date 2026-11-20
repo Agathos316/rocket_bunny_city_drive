@@ -19,11 +19,12 @@ import { PlayerCar } from './vehicles/playerCar.js';
 import { TrafficManager } from './traffic/trafficManager.js';
 import { Hud } from './ui/hud.js';
 import { SettingsPanel } from './ui/settingsPanel.js';
+import { AudioManager } from './audio.js';
 
 export class Game {
   /**
    * Everything is created for you; pass `deps` to substitute parts (tests do this):
-   * { parent, renderer, input, hud, settings, makeReflection }
+   * { parent, renderer, input, hud, settings, audio, makeReflection }
    */
   constructor(deps = {}) {
     this.renderer = deps.renderer || createRenderer(deps.parent || document.body);
@@ -40,13 +41,17 @@ export class Game {
 
     this.input = deps.input || new InputManager(window);
     this.hud = deps.hud || new Hud(document);
+    this.audio = deps.audio || new AudioManager();
     this.settings = deps.settings || new SettingsPanel({
       onTraffic: (n) => this.traffic.setCount(n, this.player),
       onCar: (model) => this.player.setModel(model),
+      onSound: (on) => this.audio.setEnabled(on),
+      onVolume: (v) => this.audio.setVolume(v),
       doc: document,
     });
     this.settings.setTraffic?.(TRAFFIC.defaultCount);
     this.settings.setCar?.(CAR.defaultModel);
+    this.settings.setSound?.(this.audio.enabled, this.audio.volume);
 
     this.frameCount = 0;
     this.crashes = 0;
@@ -54,7 +59,10 @@ export class Game {
     this.lastTime = 0;
     this.frame = this.frame.bind(this);
     this.onResize = this.onResize.bind(this);
+    this.onGesture = () => this.audio.unlock();   // browsers only allow sound after a key press or click
     window.addEventListener('resize', this.onResize);
+    window.addEventListener('keydown', this.onGesture);
+    window.addEventListener('pointerdown', this.onGesture);
 
     this.chunks.update(this.player.gx, this.player.gz, Infinity);   // build the whole starting neighbourhood before the first frame
     this.traffic.setCount(TRAFFIC.defaultCount, this.player);
@@ -76,6 +84,9 @@ export class Game {
   dispose() {
     this.stop();
     window.removeEventListener('resize', this.onResize);
+    window.removeEventListener('keydown', this.onGesture);
+    window.removeEventListener('pointerdown', this.onGesture);
+    this.audio.dispose?.();
     this.input.dispose?.();
   }
 
@@ -107,6 +118,10 @@ export class Game {
     p.syncMesh(dt);
     this.chase.update(dt, p);
     this.environment.update(p, this.camera, this.frameCount++);
+    this.audio.update(dt, {
+      speed: p.v, throttle: input.throttle, brake: input.brake, steer: p.steer,
+      airborne: p.y > 0.05, gx: p.gx, gz: p.gz,
+    });
     this.hud.setSpeed(p.v);
     this.hud.setMoney(p.money);
     this.hud.update(dt);
@@ -116,9 +131,15 @@ export class Game {
   stepPlayer(dt, input) {
     const p = this.player;
     p.drive(dt, input);
+    const vIn = p.v;
     if (this.collisions.blocks(p)) return this.crash();      // off the bridge and into the river
+    if (Math.abs(vIn) > 3 && Math.abs(vIn) - Math.abs(p.v) > 2) this.audio.thud(vIn);   // hit a building
+    const vyBefore = p.vy;
     this.collisions.bumps(p);
+    if (p.vy > vyBefore + 0.5) this.audio.bump(p.v);
+    const wasAirborne = p.y > 0.01, fallSpeed = p.vy;
     p.fall(dt);
+    if (wasAirborne && p.y === 0) this.audio.landing(fallSpeed);
     if (this.collisions.parkedCars(p)) return this.crash();
     if (this.collisions.traffic(p, this.traffic.cars)) return this.crash();
     p.syncGrid();
@@ -127,6 +148,7 @@ export class Game {
   /** Restart at the start line, clearing money, and move traffic out of the way. */
   crash() {
     this.crashes++;
+    this.audio.crash();
     const p = this.player;
     p.reset();
     this.chase.resetHeading(p.h);

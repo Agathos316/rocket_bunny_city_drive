@@ -130,3 +130,18 @@ export const KEYMAP = {
   left: ['ArrowLeft'],
   right: ['ArrowRight'],
 };
+
+/** Procedurally synthesised sound (Web Audio). No audio files are used. */
+export const AUDIO = {
+  volume: 0.6,                   // default master volume, 0..1
+  gearSpeeds: [0, 11, 22, 34, 46, 58],   // speed (m/s) at each gear boundary; the engine note drops at each shift
+  engineIdleHz: 40,              // engine fundamental at the lowest revs
+  engineRangeHz: 125,            // added at the redline
+  engineGain: 0.32,
+  roadGain: 0.12,
+  windGain: 0.14,
+  squealGain: 0.07,
+  ambienceGain: 0.5,
+  ambienceFadeSeconds: 1.5,      // crossfade time when you drive into a different environment
+  minEventGap: 0.15,             // seconds between repeats of the same impact sound
+};
