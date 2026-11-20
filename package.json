@@ -1,0 +1,15 @@
+{
+  "name": "rocket-bunny-city-drive",
+  "version": "1.0.0",
+  "description": "Rocket Bunny City Drive: an endless 3D driving game in the browser (three.js).",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "test": "node --import ./tests/register.mjs --test \"tests/*.test.mjs\"",
+    "test:browser": "node tests/browser/smoke.mjs"
+  }
+}

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rocket Bunny City Drive</title>
+<link rel="stylesheet" href="styles/game.css">
+<!-- three.js is vendored (see vendor/three/README.md); the import map lets every module say `from 'three'`. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/build/three.module.js",
+    "three/addons/": "./vendor/three/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div class="hud" id="money">Money $<b id="mny">0</b></div>
+<div class="hud" id="spd"><b id="kmh">0</b><span>km/h</span></div>
+
+<button id="cog" aria-label="Settings">⚙</button>
+<div class="hud" id="set" hidden>
+  <b>Settings</b>
+  <label>Your car
+    <select id="car">
+      <option value="supra">Toyota Supra</option>
+      <option value="mustang">Ford Mustang</option>
+      <option value="porsche">Porsche 911</option>
+      <option value="gtr">Nissan GT-R</option>
+      <option value="civic">Honda Civic Type R</option>
+    </select>
+  </label>
+  <label>Traffic: <b id="tv">16</b> cars
+    <input type="range" id="tr" min="0" max="40" value="16">
+  </label>
+  <p>↑ accelerate · ↓ brake / reverse<br>← → steer (combine freely)<br>Hit a car and you restart at the start, and your money resets.</p>
+</div>
+
+<div id="crash">CRASH</div>
+<div id="fatal" hidden></div>
+<noscript><p class="fatal-static">Rocket Bunny City Drive needs JavaScript and WebGL.</p></noscript>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
