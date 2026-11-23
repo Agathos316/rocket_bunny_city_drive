@@ -5,12 +5,13 @@ import { installDom, fakeRenderer, fakeInput } from './helpers/dom.mjs';
 import { recordingAudio } from './helpers/audio.mjs';
 
 const dom = installDom();   // must happen before the game's modules are imported
+await (await import('./helpers/models.mjs')).registerFakeCars();   // every vehicle is a model file; these stand in for them
 const { Game } = await import('../src/game.js');
 const { C, RAD, TRAFFIC, CAR, DRIVE } = await import('../src/config.js');
 const { toWorld, toGrid, worldHeading } = await import('../src/world/zones.js');
 const { InputManager } = await import('../src/input.js');
 const { TrafficSignals } = await import('../src/world/signals.js');
-const { makeCar } = await import('../src/vehicles/carFactory.js');
+const { makeCar, makeTrafficCar, playerNames } = await import('../src/vehicles/carLibrary.js');
 const { ChunkManager } = await import('../src/world/chunkManager.js');
 const { TrafficSignals: Signals } = await import('../src/world/signals.js');
 const THREE = await import('three');
@@ -29,7 +30,7 @@ function makeGame({ traffic } = {}) {
   dom.elements.clear();   // fresh UI elements, so listeners from earlier games in this file cannot fire
   const input = fakeInput();
   const audio = recordingAudio();
-  const game = new Game({ renderer: fakeRenderer(), input, audio, makeReflection: () => null, loadModels: null, loadTrafficModels: null });
+  const game = new Game({ renderer: fakeRenderer(), input, audio, makeReflection: () => null });
   if (traffic !== undefined) game.traffic.setCount(traffic, game.player);
   return { game, input, audio };
 }
@@ -364,31 +365,25 @@ test('world streaming: leaving a cell behind frees it', () => {
   assert.equal(game.chunks.parked.has('0,0'), false);
 });
 
-test('cars: all five models build with merged meshes (few draw calls) and finite geometry', () => {
-  for (const model of CAR.models) {
-    for (const detail of [true, false]) {
-      const car = makeCar(0xc8102e, detail, model);
-      let meshes = 0;
-      car.tilt.traverse((m) => {
-        if (!m.isMesh) return;
-        meshes++;
-        const pos = m.geometry.attributes.position;
-        for (let q = 0; q < pos.count * 3; q++) assert.ok(Number.isFinite(pos.array[q]), `${model}: non-finite vertex`);
-      });
-      assert.equal(car.spin.length, 4);
-      assert.equal(car.front.length, 2);
-      assert.ok(meshes <= 8 + 14, `${model}: ${meshes} meshes`);   // 4 wheels x 3 meshes + a handful of merged body meshes
-    }
+test('cars: every player model builds with four spinning wheels, two steering, and a camera eye', () => {
+  assert.deepEqual(playerNames().sort(), Object.keys(CAR.library.player).sort());
+  for (const model of playerNames()) {
+    const car = makeCar(model);
+    assert.equal(car.spin.length, 4, `${model}: wheels`);
+    assert.equal(car.front.length, 2, `${model}: front wheels`);
+    assert.ok(car.wheelR > 0.3 && car.eye && typeof car.setSteer === 'function', `${model}: wheel radius, eye, setSteer`);
   }
+  for (let i = 0; i < 14; i++) assert.equal(makeTrafficCar(i).spin.length, 4);
+  assert.throws(() => makeCar('supra'), /not loaded/, 'there are no built-in cars to fall back on');
 });
 
 test('settings: choosing a car swaps the player model', () => {
   const { game } = makeGame();
   const before = game.player.car.root;
   const select = dom.elements.get('car');
-  select.value = 'gtr';
+  select.value = 'race';
   select.dispatch('change');
-  assert.equal(game.player.model, 'gtr');
+  assert.equal(game.player.model, 'race');
   assert.notEqual(game.player.car.root, before);
   assert.equal(game.scene.children.includes(before), false);
   assert.equal(game.scene.children.includes(game.player.car.root), true);
@@ -436,16 +431,16 @@ test('camera: C switches to the cockpit view (the driver\'s eye, facing forward)
   assert.equal(game.chase.mode, 'chase');
 });
 
-test('cars: the steering wheel turns with the steering (every procedural model)', () => {
+test('cars: the Ferrari steering wheel turns with the steering, in proportion to the road wheels', () => {
   const { game, input } = makeGame({ traffic: 0 });
-  for (const model of CAR.models) {
-    game.player.setModel(model);
-    input.value.steer = 1;
-    run(game, 1);                                              // parked: no throttle, so nothing can crash and reset the steering
-    const wheel = game.player.car.tilt.children.find((o) => !o.isMesh && o.rotation.x === -0.45);   // the steering-wheel group
-    assert.ok(wheel && wheel.rotation.z < -1, `${model}: steering wheel should be turned left`);
-    assert.ok(game.player.car.eye, `${model}: has a cockpit eye point`);
-  }
+  game.player.setModel('ferrari');
+  const wheel = game.player.car.tilt.children.find((o) => !o.isMesh && o.children.some((c) => c.name === 'steering_leather'));
+  assert.ok(wheel, 'steering-wheel group exists');
+  input.value.steer = 1;
+  run(game, 1);                                              // parked: no throttle, so nothing can crash and reset the steering
+  const angle = 2 * Math.acos(Math.min(1, Math.abs(wheel.quaternion.w)));
+  assert.ok(Math.abs(angle - CAR.steeringWheelLock) < 0.1, `wheel turned ${angle.toFixed(2)} rad, expected ${CAR.steeringWheelLock}`);
+  assert.ok(Math.abs(game.player.car.front[0].rotation.y - CAR.roadWheelLock) < 0.05, 'road wheels turn too');
 });
 
 test('city: every edge shared with a highway gets a real road (surface, dashes and junction patches)', () => {

@@ -38,40 +38,37 @@ export const RENDER = {
 
 /* ---------- vehicles ---------- */
 export const CAR = {
-  scale: 1.5,                    // model units -> world units
-  wheelRadius: 0.37,             // before scale
-  playerColor: 0xff6a00,
-  defaultModel: 'supra',
-  models: ['supra', 'mustang', 'porsche', 'gtr', 'civic'],
-  trafficColors: [0x1e5fd6, 0xc8102e, 0x0b4ea2, 0xf4f4f2, 0x7d8087, 0xf7c600, 0x6cc4e8, 0xb30f1d, 0x1a1b1e, 0x2f7a48, 0xff7a00],
-  parkedColors: [0x1e88ff, 0xe5173f, 0x7ad100, 0xf2f2f2, 0x8e3bff, 0xffd000, 0x00c2b0, 0xff4fa0, 0x2a2a2a, 0xff6a00],
-  blackRoofChance: 0.4,
+  scale: 1.5,                    // Ferrari: model units (metres) -> world units
+  playerColor: 0xff6a00,         // paint of the Ferrari
+  defaultModel: 'ferrari',
   steeringWheelLock: 1.2,        // steering-wheel rotation (rad) at full lock; the road wheels turn roadWheelLock
   roadWheelLock: 0.5,
-  preferredModel: 'ferrari',     // the player's car once its glTF model has loaded (falls back to defaultModel)
-  dracoPath: './vendor/three/examples/jsm/libs/draco/gltf/',
   /**
-   * Cars loaded from glTF/GLB files. Coordinates are in the file's own units (metres); rotateY turns the model so its
-   * nose points +z; steerCentre/steerAxis place and aim the steering wheel; eye is the driver's eye (cockpit camera).
+   * Every vehicle in the game is a glTF model from this library (nothing is built in code). See assets/models/README.md.
+   * player: the cars you can choose. `kind: 'ferrari'` has a modelled cockpit; the others get a bonnet-level camera
+   * (`eye`, in model units). traffic / parked: the models used for cars driving and parked around the world.
    */
-  /** Ordinary traffic cars (Kenney Car Kit, CC0), used for traffic in place of the sports-car shapes once loaded. */
-  trafficGlb: {
-    dir: './assets/models/traffic/',
-    names: ['sedan', 'suv', 'taxi', 'van', 'suv-luxury', 'delivery', 'police'],
-    scale: 2.5,                  // model units -> world units
-  },
-  glbModels: {
-    ferrari: {
-      label: 'Ferrari 458 Italia',
-      url: './assets/models/ferrari.glb',
-      rotateY: Math.PI,
-      scale: 1,
-      steerCentre: [-0.35, 0.8, -0.35],
-      steerAxis: [0, 0.327, 0.945],
-      steerLock: 1.2,            // radians of steering-wheel rotation at full lock
-      eye: [-0.35, 1.0, 0.1],
+  library: {
+    dracoPath: './vendor/three/examples/jsm/libs/draco/gltf/',
+    kenneyDir: './assets/models/kenney/',
+    kenneyScale: 2.5,            // Kenney Car Kit model units -> world units (driven and traffic cars)
+    parkedScale: 2.3,            // parked cars are a little smaller so they fit the bays
+    player: {
+      ferrari: {
+        label: 'Ferrari 458 Italia', kind: 'ferrari', url: './assets/models/ferrari.glb',
+        rotateY: Math.PI,        // the model's nose is -z; the game's cars face +z
+        steerCentre: [-0.35, 0.8, -0.35],   // steering wheel hub and column axis, in the file's own coordinates
+        steerAxis: [0, 0.327, 0.945],
+        eye: [-0.35, 1.0, 0.1],  // the driver's eye
+      },
+      'sedan-sports': { label: 'Sports sedan', kind: 'kenney', url: './assets/models/kenney/sedan-sports.glb', eye: [0, 0.95, 0.15] },
+      'hatchback-sports': { label: 'Sports hatchback', kind: 'kenney', url: './assets/models/kenney/hatchback-sports.glb', eye: [0, 0.95, 0.15] },
+      race: { label: 'Race car', kind: 'kenney', url: './assets/models/kenney/race.glb', eye: [0, 0.85, 0.2] },
+      'race-future': { label: 'Future race car', kind: 'kenney', url: './assets/models/kenney/race-future.glb', eye: [0, 0.85, 0.2] },
     },
-  },          // share of traffic cars with a black roof
+    traffic: ['sedan', 'suv', 'taxi', 'van', 'suv-luxury', 'delivery', 'police'],
+    parked: ['sedan', 'suv', 'taxi', 'van', 'suv-luxury'],     // not the delivery truck (too long for a bay) or the police car
+  },
 };
 
 export const DRIVE = {

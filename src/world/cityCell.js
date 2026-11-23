@@ -8,7 +8,7 @@
  * Works in grid coordinates; the chunk manager bends the finished group into world space.
  */
 import * as THREE from 'three';
-import { C, RD, PK, CAR } from '../config.js';
+import { C, RD, PK } from '../config.js';
 import { rng } from '../util/math.js';
 import { Batcher } from '../util/batcher.js';
 import { getAssets } from '../assets.js';
@@ -17,7 +17,7 @@ import { Hr, bridgeY, isHwy, isRiver, isStn, roadAt, roadStyle } from './zones.j
 import { ribbon } from './surfaces.js';
 import { buildStation } from './station.js';
 import { getTrees } from './trees.js';
-import { putParkedCar } from '../vehicles/parkedCars.js';
+import { putParkedCar } from '../vehicles/carLibrary.js';
 
 export function generateCity(i, j, { signals }) {
   const { mats, castsShadow } = getAssets();
@@ -115,9 +115,8 @@ export function generateCity(i, j, { signals }) {
         if (!(rand() < 0.45)) continue;
         const p = at(24.25 + k * 8.5, 10.5), f = rand() < 0.5 ? 1 : -1;
         const hx = axis ? 0 : f, hz = axis ? f : 0;
-        const model = CAR.models[rand() * CAR.models.length | 0];
-        const colour = CAR.parkedColors[rand() * CAR.parkedColors.length | 0];
-        putParkedCar(batch, model, colour, p[0], p[1], axis ? (f > 0 ? 0 : Math.PI) : (f > 0 ? Math.PI / 2 : -Math.PI / 2));
+        rand(); rand();   // (two draws that used to pick a model and colour; kept so the city layout does not change)
+        putParkedCar(batch, p[0], p[1], axis ? (f > 0 ? 0 : Math.PI) : (f > 0 ? Math.PI / 2 : -Math.PI / 2));
         parked.push({ x: p[0], z: p[1], hx, hz });
       }
     }

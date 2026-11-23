@@ -51,15 +51,6 @@ export class SettingsPanel {
     this.volume.value = Math.round(volume * 100);
   }
 
-  /** Offer a car that became available after the page loaded (a glTF model). */
-  addCar(model, label) {
-    if ([...this.carSelect.options].some((o) => o.value === model)) return;
-    const option = this.doc.createElement('option');
-    option.value = model;
-    option.textContent = label;
-    this.carSelect.insertBefore(option, this.carSelect.firstChild);
-  }
-
   setCar(model) {
     this.carSelect.value = model;
   }

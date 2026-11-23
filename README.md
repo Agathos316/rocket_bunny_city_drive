@@ -1,6 +1,6 @@
 # Rocket Bunny City Drive
 
-A browser driving game. Drive a Rocket Bunny widebody sports car through an endless, self-generating world:
+A browser driving game. Drive a sports car through an endless, self-generating world:
 a city of towers, traffic lights and parked cars; rivers with ramped bridges; then highways with hills,
 tunnels, bridges and sweeping interchanges; a desert; and the next city. Hit another car and you restart at the
 start line with your money reset to zero.
@@ -30,7 +30,7 @@ Pages URL. Any static file server works too.
 | C | Switch camera: chase view / cockpit view (the driver's eye, behind the steering wheel) |
 | ⚙ (bottom left) | Settings: choose your car, set the amount of traffic, sound on/off and volume |
 
-Cars: a Ferrari 458 Italia (a real 3D model with a modelled cockpit; the default once it has loaded), plus the built-in Toyota Supra, Ford Mustang, Porsche 911, Nissan GT-R and Honda Civic Type R with the Rocket Bunny kit. Traffic and kerbside parked cars use ordinary cars (sedan, SUV, taxi, van, delivery truck, police car from the CC0 Kenney Car Kit). In the cockpit view the steering wheel turns with your steering. The cockpit is fully modelled only for the Ferrari; the built-in cars just get a simple wheel and no interior.
+Cars: every vehicle in the game is a 3D model loaded from `assets/models/` (nothing is built in code). You choose between a Ferrari 458 Italia (with a modelled cockpit whose steering wheel turns), a sports sedan, a sports hatchback, a race car and a future race car. Traffic and kerbside parked cars are ordinary cars (sedan, SUV, luxury SUV, taxi, van, delivery truck, police car) from the CC0 Kenney Car Kit. **C** switches between the chase view and the driver's view: the Ferrari's cockpit, or a bonnet-level view for the other cars.
 
 ## Sound
 
@@ -75,7 +75,7 @@ src/
   assets.js             materials and procedural textures
   audio.js              AudioManager: procedural engine, road, ambience and impact sounds
   collisions.js         blocks, bumps, parked cars, traffic
-  vehicles/             car models (lofted shells), glTF cars (Ferrari, traffic cars), car factory, player car + physics, parked cars
+  vehicles/             the car library (loads and builds every vehicle from glTF files), player car + physics
   traffic/              TrafficManager: lanes, turns, following, traffic lights, recycling
   world/                zones (pure world-shape functions), cell generators, trees, chunk streaming, signals
   ui/                   HUD and settings panel
@@ -83,7 +83,7 @@ src/
 tests/                  Node tests (zones, whole-game integration) + browser smoke test
 tools/serve.mjs         tiny static server used by `npm start` and the browser test
 vendor/three/           three.js r128 (ES module build, BufferGeometryUtils, GLTFLoader, DRACOLoader + decoder), MIT licensed
-assets/models/         glTF car models (see its README for sources and licences)
+assets/models/         the glTF car library (see its README for sources and licences)
 ```
 
 ## How it works

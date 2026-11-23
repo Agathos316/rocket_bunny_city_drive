@@ -7,7 +7,7 @@
 import { CAR, DRIVE, START } from '../config.js';
 import { clamp } from '../util/math.js';
 import { sgrid, toGrid, toWorld, worldHeading } from '../world/zones.js';
-import { disposeCar, makeCar } from './carFactory.js';
+import { disposeCar, makeCar } from './carLibrary.js';
 
 /** Start pose in world space: the grid start point, bent by the world warp. */
 export function startPose() {
@@ -21,7 +21,7 @@ export class PlayerCar {
     this.start = startPose();
     this.model = CAR.defaultModel;
     this.reset();
-    this.car = makeCar(CAR.playerColor, true, this.model);
+    this.car = makeCar(this.model);
     scene.add(this.car.root);
   }
 
@@ -49,7 +49,7 @@ export class PlayerCar {
     this.scene.remove(this.car.root);
     disposeCar(this.car);
     this.model = name;
-    this.car = makeCar(CAR.playerColor, true, name);
+    this.car = makeCar(name);
     this.scene.add(this.car.root);
   }
 
@@ -105,7 +105,7 @@ export class PlayerCar {
     root.rotation.y = this.h;
     tilt.rotation.z = this.steer * clamp(Math.abs(this.v) / 35, 0, 1) * 0.06;
     tilt.rotation.x = -this.acc * 0.0013 + clamp(this.vy, -4, 4) * -0.01 - Math.atan(this.sl);
-    const spinStep = this.v * dt / (CAR.wheelRadius * CAR.scale);
+    const spinStep = this.v * dt / this.car.wheelR;
     for (const w of spin) w.rotation.x += spinStep;
     for (const f of front) f.rotation.y = this.steer * CAR.roadWheelLock;
     this.car.setSteer?.(this.steer);

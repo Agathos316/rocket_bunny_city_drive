@@ -1,4 +1,5 @@
 import { Game } from './game.js';
+import { loadCarLibrary } from './vehicles/carLibrary.js';
 
 function showFatal(error) {
   const box = document.getElementById('fatal');
@@ -15,6 +16,7 @@ function showFatal(error) {
 }
 
 try {
+  await loadCarLibrary();   // every vehicle is a model file, so the game cannot start until they have loaded
   const game = new Game({ parent: document.body });
   game.start();
   window.rocketBunny = { game };   // handy for debugging in the console

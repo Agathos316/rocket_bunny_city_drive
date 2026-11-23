@@ -9,9 +9,7 @@
  */
 import { C, RD, CAR, TRAFFIC, SIGNALS } from '../config.js';
 import { angDiff } from '../util/math.js';
-import { makeCar } from '../vehicles/carFactory.js';
-import { buildTrafficCar, loadedTrafficNames } from '../vehicles/gltfCar.js';
-import { disposeCar } from '../vehicles/carFactory.js';
+import { makeTrafficCar } from '../vehicles/carLibrary.js';
 import { Hr, cityBridgeY, isHwy, roadAt, toWorld, worldHeading } from '../world/zones.js';
 
 /** Is there a road leaving intersection (ci, cj) in direction (dx, dz)? */
@@ -34,32 +32,11 @@ export class TrafficManager {
     return this.cars.filter((c) => c.on).length;
   }
 
-  /** An ordinary car (sedan, SUV, taxi, van...) once those models have loaded; the built-in car shapes until then. */
-  makeTrafficCar(i) {
-    if (loadedTrafficNames().length) return { ...buildTrafficCar(i), ordinary: true };
-    return makeCar(CAR.trafficColors[i % CAR.trafficColors.length], false, CAR.models[i % CAR.models.length]);
-  }
-
-  /** The ordinary-car models have just loaded: swap them in for the built-in shapes already driving around. */
-  upgradeCars() {
-    this.cars.forEach((a, i) => {
-      if (a.car.ordinary) return;
-      const fresh = this.makeTrafficCar(i);
-      this.scene.remove(a.car.root);
-      disposeCar(a.car);
-      fresh.root.position.copy(a.car.root.position);
-      fresh.root.rotation.y = a.car.root.rotation.y;
-      fresh.root.visible = a.car.root.visible;
-      this.scene.add(fresh.root);
-      a.car = fresh;
-    });
-  }
-
   /** Show exactly `n` cars; newly shown cars appear on nearby roads. `player` provides the reference position. */
   setCount(n, player) {
     while (this.cars.length < n) {
       const i = this.cars.length;
-      const car = this.makeTrafficCar(i);
+      const car = makeTrafficCar(i);
       this.scene.add(car.root);
       this.cars.push({ car, on: false });
     }
@@ -140,7 +117,7 @@ export class TrafficManager {
       }
 
       this.pose(a);
-      const wheelStep = a.speed * dt / (CAR.wheelRadius * CAR.scale);
+      const wheelStep = a.speed * dt / a.car.wheelR;
       for (const w of a.car.spin) w.rotation.x += wheelStep;
       if (Math.hypot(a.x - pp.x, a.z - pp.z) > TRAFFIC.despawn) this.spawn(a, pp.x, pp.z);
     }
