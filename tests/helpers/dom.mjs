@@ -56,3 +56,10 @@ export function fakeRenderer() {
 export function fakeInput() {
   return { value: { throttle: 0, brake: 0, steer: 0 }, read() { return this.value; }, dispose() {} };
 }
+
+/** A stand-in for the car selector's picture (the real one needs WebGL): records what the selector asks of it. */
+export function fakeGarage() {
+  const calls = [];
+  const rec = (name) => (...args) => { calls.push([name, ...args]); };
+  return { calls, show: rec('show'), showCar: rec('showCar'), hide: rec('hide'), update: rec('update') };
+}

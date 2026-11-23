@@ -48,7 +48,7 @@ try {
     const g = window.rocketBunny.game;
     g.renderer.render(g.scene, g.camera);   // read back in the same task as the draw (the drawing buffer is not preserved)
     const c = document.createElement('canvas'); c.width = 64; c.height = 36;
-    const ctx = c.getContext('2d'); ctx.drawImage(document.querySelector('canvas'), 0, 0, 64, 36);
+    const ctx = c.getContext('2d'); ctx.drawImage(g.renderer.domElement, 0, 0, 64, 36);   // the game's own canvas (the car selector has one too)
     const d = ctx.getImageData(0, 0, 64, 36).data, seen = new Set();
     for (let i = 0; i < d.length; i += 4) seen.add((d[i] >> 4) + ',' + (d[i + 1] >> 4) + ',' + (d[i + 2] >> 4));
     return seen.size;
@@ -73,9 +73,17 @@ try {
   await page.waitForTimeout(200);
   await page.screenshot({ path: OUT + '3-settings.png' });
   check(await page.isVisible('#set'), 'settings panel opens from the cog');
-  await page.selectOption('#car', 'supra');
+  await page.click('#cog');                                     // close the panel again
+  await page.keyboard.press('Space');                           // the car selector: Space, arrow to the Nissan, Space
+  await page.waitForTimeout(500);
+  check(await page.isVisible('#garage'), 'Space opens the car selector');
+  await page.keyboard.press('ArrowRight');
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: OUT + '3b-selector.png' });
+  await page.keyboard.press('Space');
   await page.waitForTimeout(300);
-  check((await page.evaluate(() => window.rocketBunny.game.player.model)) === 'supra', 'car selection changes the model');
+  check((await page.evaluate(() => window.rocketBunny.game.player.model)) === 'nissan', 'car selection changes the model');
+  check(!(await page.isVisible('#garage')), 'the selector closes after choosing');
 
   // ---- sound: measure what the Web Audio graph actually outputs (headless Chromium has a silent sink, but the
   // graph still runs, so an analyser on the master output sees the real signal). This proves the synthesis

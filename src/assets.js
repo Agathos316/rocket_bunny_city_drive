@@ -77,15 +77,12 @@ function buildAssets() {
   }));
   const roof = lambert(0x7a7e84);
   const trunk = lambert(0x5a4030);
+  const tree = lambert(0xffffff, { vertexColors: true });   // vertex-coloured tree geometry (world/trees.js)
   const leaves = [0x3f7a35, 0x4e8f3a, 0x2f6a30].map((c) => lambert(c));
   const concrete = lambert(0xa5a7aa, { side: THREE.DoubleSide, emissive: 0x34363a });
   const canopy = lambert(0xd0242b);
-  const parkedPaint = new THREE.MeshStandardMaterial({
-    color: 0xffffff, vertexColors: true, metalness: 0.4, roughness: 0.35, envMapIntensity: 0.6, side: THREE.DoubleSide,
-  });
-
   const mats = {
-    buildings, roof, trunk, leaves, concrete, canopy, parkedPaint,
+    buildings, roof, trunk, leaves, tree, concrete, canopy,
     footpath: lambert(0xc2beb4),
     ground: lambert(0xffffff, { map: asphalt }),
     highway: lambert(0x111214),
@@ -107,24 +104,8 @@ function buildAssets() {
     water: new THREE.MeshStandardMaterial({ color: 0x2b6f8e, metalness: 0.6, roughness: 0.15, envMapIntensity: 1 }),
   };
 
-  /* ---- cars ---- */
-  const car = {
-    dark: lambert(0x16181c),
-    glass: new THREE.MeshStandardMaterial({ color: 0x0e1a28, metalness: 0.9, roughness: 0.06 }),
-    tire: lambert(0x101010),
-    rim: new THREE.MeshStandardMaterial({ color: 0xdde1e8, metalness: 1, roughness: 0.25 }),
-    lamp: new THREE.MeshBasicMaterial({ color: 0xfff2c0 }),
-    tail: new THREE.MeshBasicMaterial({ color: 0xff2020 }),
-    plate: mats.whiteLine,
-    blackRoof: () => lambert(0x16181c),
-    /** Glossy clear-coat paint. */
-    paint: (color) => new THREE.MeshPhysicalMaterial({
-      color, metalness: 0.5, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 0.9,
-    }),
-  };
-
   /* Materials whose meshes cast shadows (flat ground detail does not). */
-  const castsShadow = new Set([roof, trunk, ...leaves, ...buildings, concrete, canopy, parkedPaint]);
+  const castsShadow = new Set([roof, trunk, tree, ...leaves, ...buildings, concrete, canopy]);
 
-  return { mats, car, castsShadow, textures: { asphalt } };
+  return { mats, castsShadow, textures: { asphalt } };
 }

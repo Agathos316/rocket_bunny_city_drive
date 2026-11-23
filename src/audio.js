@@ -1,7 +1,9 @@
 /**
  * Sound, synthesised live with the Web Audio API (no audio files, no dependencies).
  *
- *   engine     two detuned saw oscillators + a sub, pitch from a simple gearbox model of the speed
+ *   engine     two detuned oscillators + a sub, pitch from a simple gearbox model of the speed; the shape, pitch range,
+ *              gearbox, loudness and brightness come from the car's voice (SOUNDS in config.js: a V8 muscle car rumbles,
+ *              a hatchback is gentle, the Ferrari revs high; a voice can also be electric: a whine, silent when stopped)
  *   road/tyres filtered noise rising with speed; a squeal when cornering or braking hard
  *   wind       noise that grows with speed
  *   ambience   a bed per environment (city rumble, countryside wind + birds, desert wind), crossfaded
@@ -11,7 +13,7 @@
  * game calls on the first key press or click. Where Web Audio is missing (or fails) every method is a no-op.
  * A fake context can be injected through `contextFactory`, which is how the tests run it.
  */
-import { AUDIO, C } from './config.js';
+import { AUDIO, C, SOUNDS } from './config.js';
 import { isDesert, isHwy } from './world/zones.js';
 
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -22,12 +24,20 @@ export function zoneAt(gx, gz) {
   return !isHwy(i, j) ? 'city' : isDesert(i, j) ? 'desert' : 'country';
 }
 
+/** The original engine sound: what a voice falls back on for anything it does not set. */
+export const DEFAULT_VOICE = {
+  wave1: 'sawtooth', wave2: 'sawtooth', waveSub: 'triangle',
+  idleHz: AUDIO.engineIdleHz, rangeHz: AUDIO.engineRangeHz, gearSpeeds: AUDIO.gearSpeeds, detune: 1.006,
+  mix: [0.5, 0.35, 0.6], cutoffBase: 320, cutoffRange: 1700, resonance: 1.2, gain: 1, road: 1, whine: null, ev: false,
+};
+export const voiceFor = (name) => ({ ...DEFAULT_VOICE, ...(SOUNDS[name] || {}) });
+
 /**
- * The engine note for a speed: a five-speed box, so the pitch climbs through each gear and drops at the shift.
- * Returns { gear (1-5), rpm (0..1), freq (Hz), cutoff (Hz), gain (0..1) }.
+ * The engine note for a speed: a gearbox, so the pitch climbs through each gear and drops at the shift
+ * (a single gear for an EV). Returns { gear, rpm (0..1), freq (Hz), cutoff (Hz), gain (0..1) }.
  */
-export function engineModel(speed, throttle) {
-  const v = Math.abs(speed), g = AUDIO.gearSpeeds;
+export function engineModel(speed, throttle, voice = DEFAULT_VOICE) {
+  const v = Math.abs(speed), g = voice.gearSpeeds;
   let gear = 0;
   while (gear < g.length - 2 && v >= g[gear + 1]) gear++;
   const frac = clamp((v - g[gear]) / (g[gear + 1] - g[gear]), 0, 1);
@@ -36,8 +46,8 @@ export function engineModel(speed, throttle) {
   return {
     gear: gear + 1,
     rpm,
-    freq: AUDIO.engineIdleHz + rpm * AUDIO.engineRangeHz,
-    cutoff: 320 + rpm * 1700 * (0.55 + 0.45 * load),
+    freq: voice.idleHz + rpm * voice.rangeHz,
+    cutoff: voice.cutoffBase + rpm * voice.cutoffRange * (0.55 + 0.45 * load),
     gain: 0.35 + 0.65 * load,
   };
 }
@@ -49,9 +59,11 @@ export class AudioManager {
     this.factory = contextFactory || (Ctor ? () => new Ctor() : null);
     this.supported = !!this.factory;
     this.enabled = true;
+    this.paused = false;        // true while the game is paused (the car selector): silent, without touching the Sound setting
     this.volume = AUDIO.volume;
     this.ctx = null;
     this.zone = 'city';
+    this.voice = { ...DEFAULT_VOICE };
     this.birdTimer = 2;
     this.lastEvent = {};
     this.doc = doc;
@@ -79,17 +91,41 @@ export class AudioManager {
     }
   }
 
+  /** Give the engine a car's voice (a key of SOUNDS). Takes effect immediately, even before the audio context exists. */
+  setVoice(name) {
+    this.voice = voiceFor(name);
+    if (this._engine) this._applyVoice();
+  }
+
+  _applyVoice() {
+    const v = this.voice, e = this._engine;
+    e.saw1.type = v.wave1; e.saw2.type = v.wave2; e.sub.type = v.waveSub;
+    e.g1.gain.value = v.mix[0]; e.g2.gain.value = v.mix[1]; e.gSub.gain.value = v.mix[2];
+    e.filter.Q.value = v.resonance;
+    e.whine.type = 'sine';
+  }
+
   setEnabled(on) {
     this.enabled = !!on;
     if (!this.ctx) return;
-    this._master.gain.setTargetAtTime(this.enabled ? this.volume : 0, this.ctx.currentTime, 0.05);
+    this._master.gain.setTargetAtTime(this._level(), this.ctx.currentTime, 0.05);
     if (this.enabled) this.ctx.resume?.();
     else setTimeout(() => { if (!this.enabled) this.ctx.suspend?.(); }, 300);   // after the fade, stop using the CPU
   }
 
   setVolume(v) {
     this.volume = clamp(v, 0, 1);
-    if (this.ctx && this.enabled) this._master.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.05);
+    if (this.ctx && this.enabled) this._master.gain.setTargetAtTime(this._level(), this.ctx.currentTime, 0.05);
+  }
+
+  /** Silence everything while the game is paused (and bring it back after). */
+  setPaused(on) {
+    this.paused = !!on;
+    if (this.ctx && this.enabled) this._master.gain.setTargetAtTime(this._level(), this.ctx.currentTime, 0.05);
+  }
+
+  _level() {
+    return this.enabled && !this.paused ? this.volume : 0;
   }
 
   dispose() {
@@ -118,15 +154,19 @@ export class AudioManager {
     if (!this.ctx || !this.enabled) return;
     const t = this.ctx.currentTime, smooth = 0.06, v = Math.abs(s.speed), vf = clamp(v / 58, 0, 1);
 
-    const e = engineModel(s.speed, s.throttle);
+    const voice = this.voice, e = engineModel(s.speed, s.throttle, voice);
+    const awake = voice.ev ? clamp(v / 4, 0, 1) : 1;                      // an EV is silent when stopped
     this._engine.saw1.frequency.setTargetAtTime(e.freq, t, smooth);
-    this._engine.saw2.frequency.setTargetAtTime(e.freq * 1.006, t, smooth);
+    this._engine.saw2.frequency.setTargetAtTime(e.freq * voice.detune, t, smooth);
     this._engine.sub.frequency.setTargetAtTime(e.freq * 0.5, t, smooth);
     this._engine.filter.frequency.setTargetAtTime(e.cutoff, t, smooth);
-    this._engine.gain.gain.setTargetAtTime(AUDIO.engineGain * e.gain, t, smooth);
+    this._engine.gain.gain.setTargetAtTime(AUDIO.engineGain * voice.gain * e.gain * awake, t, smooth);
+    const w = voice.whine;                                                // an EV's motor whine, or a turbo's whistle
+    this._engine.whine.frequency.setTargetAtTime(w ? w.base + v * w.perSpeed : 400, t, smooth);
+    this._engine.whineGain.gain.setTargetAtTime(w ? w.gain * awake * (w.throttleOnly ? (s.throttle > 0 ? clamp(v / 15, 0, 1) : 0) : 0.4 + 0.6 * (s.throttle > 0 ? 1 : 0)) : 0, t, smooth);
 
     const grounded = s.airborne ? 0 : 1;
-    this._road.gain.gain.setTargetAtTime(AUDIO.roadGain * vf * grounded, t, smooth);
+    this._road.gain.gain.setTargetAtTime(AUDIO.roadGain * voice.road * vf * grounded, t, smooth);
     this._road.filter.frequency.setTargetAtTime(250 + v * 22, t, smooth);
     this._wind.gain.gain.setTargetAtTime(AUDIO.windGain * vf * vf, t, smooth);
 
@@ -192,7 +232,7 @@ export class AudioManager {
   _build() {
     const ctx = this.ctx;
     this._master = ctx.createGain();
-    this._master.gain.value = this.enabled ? this.volume : 0;
+    this._master.gain.value = this._level();
     this._master.connect(ctx.destination);
 
     // one second of white noise, shared by every noise source
@@ -205,12 +245,18 @@ export class AudioManager {
     const filter = this._biquad('lowpass', 600, 1.2), gain = this._gain(0);
     const mk = (type, hz, g) => {
       const o = ctx.createOscillator(), og = this._gain(g);
-      o.type = type; o.frequency.value = hz;
+      o.type = type; o.frequency.value = hz; o._gain = og;
       o.connect(og); og.connect(filter); o.start();
       return o;
     };
-    this._engine = { saw1: mk('sawtooth', 50, 0.5), saw2: mk('sawtooth', 50, 0.35), sub: mk('triangle', 25, 0.6), filter, gain };
+    const gains = [];
+    const mk2 = (type, hz, g) => { const o = mk(type, hz, g); gains.push(o._gain); return o; };
+    const wo = ctx.createOscillator(), wg = this._gain(0);                // extra tone: an EV's whine or a turbo whistle (silent unless the voice has one)
+    wo.type = 'sine'; wo.frequency.value = 400; wo.connect(wg); wg.connect(this._master); wo.start();
+    this._engine = { saw1: mk2('sawtooth', 50, 0.5), saw2: mk2('sawtooth', 50, 0.35), sub: mk2('triangle', 25, 0.6), filter, gain, whine: wo, whineGain: wg };
+    [this._engine.g1, this._engine.g2, this._engine.gSub] = gains;
     filter.connect(gain); gain.connect(this._master);
+    this._applyVoice();
 
     // road, wind, squeal
     this._road = this._noiseLoop('lowpass', 400, 0.7);

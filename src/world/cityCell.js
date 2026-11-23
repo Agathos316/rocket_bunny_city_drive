@@ -8,15 +8,15 @@
  * Works in grid coordinates; the chunk manager bends the finished group into world space.
  */
 import * as THREE from 'three';
-import { C, RD, PK, CAR } from '../config.js';
+import { C, RD, PK } from '../config.js';
 import { rng } from '../util/math.js';
 import { Batcher } from '../util/batcher.js';
 import { getAssets } from '../assets.js';
 import { getGeoms } from './geometries.js';
-import { bridgeY, isHwy, isRiver, isStn, roadStyle } from './zones.js';
+import { Hr, bridgeY, isHwy, isRiver, isStn, roadAt, roadStyle } from './zones.js';
 import { ribbon } from './surfaces.js';
 import { buildStation } from './station.js';
-import { putParkedCar } from '../vehicles/parkedCars.js';
+import { getTrees } from './trees.js';
 
 export function generateCity(i, j, { signals }) {
   const { mats, castsShadow } = getAssets();
@@ -61,6 +61,29 @@ export function generateCity(i, j, { signals }) {
     if (style === 1) for (const l of [-7.3, 7.3]) { const p = at(0, l); put(G.solidLine, mats.whiteLine, p[0], 0.03, p[1], 1, 1, 1, ry); }
   }
 
+  /* ---- perimeter roads: a real road (surface, centre dashes, junction patches) on every edge shared with a highway cell,
+          so the city is ringed by proper roads and highways that arrive at it meet a proper intersection ---- */
+  {
+    const addRoad = (X, ox, oz) => {              // X = runs along x; (ox, oz) = start of the road line
+      for (const [geo, mat] of [[ribbon(X, ox, oz, 0, C, RD, 0.1), mats.highway], [ribbon(X, ox, oz, 8, C - 8, 0.17, 0.14), mats.dashLine]]) {
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.receiveShadow = true;
+        group.add(mesh);
+        owned.push(geo);
+      }
+      for (const t of [0, C]) {                   // junction patch at both ends
+        const px = X ? ox + t : ox, pz = X ? oz : oz + t;
+        put(G.junction, mats.highway, px, Hr(px, pz) + 0.1, pz);
+      }
+    };
+    if (!river) {
+      if (isHwy(i - 1, j)) addRoad(false, x0, z0);                 // west edge
+      if (isHwy(i + 1, j) && !roadAt(i + 1, j, 'z')) addRoad(false, x0 + C, z0);   // east edge (the highway cell draws its own if it has a road there)
+    }
+    if (isHwy(i, j - 1)) addRoad(true, x0, z0);                    // south edge
+    if (isHwy(i, j + 1) && !roadAt(i, j + 1, 'x')) addRoad(true, x0, z0 + C);    // north edge
+  }
+
   /* ---- traffic lights: four corner poles, each with a head facing each approach ---- */
   const group2 = (i + j) & 1;
   for (const sx of [-1, 1]) {
@@ -77,7 +100,7 @@ export function generateCity(i, j, { signals }) {
     }
   }
 
-  /* ---- kerbside parking: marked bays in the strip beside each road, some with parked cars ---- */
+  /* ---- kerbside parking: marked bays in the strip beside each road, some with parked cars (the cars themselves are drawn by ParkedManager, near the player) ---- */
   for (const axis of [0, 1]) {
     for (const side of [-1, 1]) {
       // no bays on the side that faces a river, highway or petrol station (there's no kerb there)
@@ -91,9 +114,7 @@ export function generateCity(i, j, { signals }) {
         if (!(rand() < 0.45)) continue;
         const p = at(24.25 + k * 8.5, 10.5), f = rand() < 0.5 ? 1 : -1;
         const hx = axis ? 0 : f, hz = axis ? f : 0;
-        const model = CAR.models[rand() * CAR.models.length | 0];
-        const colour = CAR.parkedColors[rand() * CAR.parkedColors.length | 0];
-        putParkedCar(batch, model, colour, p[0], p[1], axis ? (f > 0 ? 0 : Math.PI) : (f > 0 ? Math.PI / 2 : -Math.PI / 2));
+        rand(); rand();   // (two draws that used to pick a model and colour; kept so the city layout does not change)
         parked.push({ x: p[0], z: p[1], hx, hz });
       }
     }
@@ -135,9 +156,9 @@ export function generateCity(i, j, { signals }) {
   for (let n = 0; n < (river ? 0 : 8); n++) {
     const side = rand() * 4 | 0, off = (rand() - 0.5) * 60, inset = C / 2 - RD - PK - 0.7;
     const tx = cx + (side < 2 ? (side ? inset : -inset) : off), tz = cz + (side < 2 ? off : (side === 2 ? inset : -inset));
-    const trunk = 2.2 + rand() * 1.2, crown = 1.4 + rand() * 0.8;
-    put(G.cyl, mats.trunk, tx, 0.3 + trunk / 2, tz, 0.22, trunk, 0.22);
-    put(G.leaf, mats.leaves[rand() * 3 | 0], tx, 0.3 + trunk + crown * 0.6, tz, crown, crown * 1.15, crown);
+    const trunk = 2.2 + rand() * 1.2, crown = 1.4 + rand() * 0.8, pick = rand() * 3 | 0;
+    const trees = getTrees(), geo = pick === 2 && n % 4 === 0 ? trees.conifer[n & 1] : trees.broadleaf[(n + pick) % 4];
+    put(geo, mats.tree, tx, 0.3, tz, crown * 0.52 + trunk * 0.1, crown * 0.52 + trunk * 0.1, crown * 0.52 + trunk * 0.1, n * 2.4 + tx);   // (no extra rand() call: the order below must not change)
   }
 
   batch.build(group, owned, castsShadow);

@@ -1,19 +1,21 @@
 // Integration tests: the whole game running headless (no GPU, no real DOM).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { installDom, fakeRenderer, fakeInput } from './helpers/dom.mjs';
+import { installDom, fakeRenderer, fakeInput, fakeGarage } from './helpers/dom.mjs';
 import { recordingAudio } from './helpers/audio.mjs';
 
 const dom = installDom();   // must happen before the game's modules are imported
+await (await import('./helpers/models.mjs')).registerFakeCars();   // every vehicle is a model file; these stand in for them
 const { Game } = await import('../src/game.js');
 const { C, RAD, TRAFFIC, CAR, DRIVE } = await import('../src/config.js');
 const { toWorld, toGrid, worldHeading } = await import('../src/world/zones.js');
 const { InputManager } = await import('../src/input.js');
 const { TrafficSignals } = await import('../src/world/signals.js');
-const { makeCar } = await import('../src/vehicles/carFactory.js');
+const { makeCar, makeTrafficCar, playerNames, trafficNames } = await import('../src/vehicles/carLibrary.js');
 const { ChunkManager } = await import('../src/world/chunkManager.js');
 const { TrafficSignals: Signals } = await import('../src/world/signals.js');
 const THREE = await import('three');
+const { getAssets } = await import('../src/assets.js');
 
 const DT = 1 / 60;
 
@@ -28,7 +30,9 @@ function makeGame({ traffic } = {}) {
   dom.elements.clear();   // fresh UI elements, so listeners from earlier games in this file cannot fire
   const input = fakeInput();
   const audio = recordingAudio();
-  const game = new Game({ renderer: fakeRenderer(), input, audio, makeReflection: () => null });
+  const garage = fakeGarage();
+  const game = new Game({ renderer: fakeRenderer(), input, audio, makeReflection: () => null, garageView: garage });
+  game.garage = garage;
   if (traffic !== undefined) game.traffic.setCount(traffic, game.player);
   return { game, input, audio };
 }
@@ -363,34 +367,104 @@ test('world streaming: leaving a cell behind frees it', () => {
   assert.equal(game.chunks.parked.has('0,0'), false);
 });
 
-test('cars: all five models build with merged meshes (few draw calls) and finite geometry', () => {
-  for (const model of CAR.models) {
-    for (const detail of [true, false]) {
-      const car = makeCar(0xc8102e, detail, model);
-      let meshes = 0;
-      car.tilt.traverse((m) => {
-        if (!m.isMesh) return;
-        meshes++;
-        const pos = m.geometry.attributes.position;
-        for (let q = 0; q < pos.count * 3; q++) assert.ok(Number.isFinite(pos.array[q]), `${model}: non-finite vertex`);
-      });
-      assert.equal(car.spin.length, 4);
-      assert.equal(car.front.length, 2);
-      assert.ok(meshes <= 8 + 14, `${model}: ${meshes} meshes`);   // 4 wheels x 3 meshes + a handful of merged body meshes
-    }
+test('cars: every car in the library builds; only the Ferrari has a cockpit; traffic cars have distance detail levels', () => {
+  assert.deepEqual(playerNames().sort(), Object.keys(CAR.library.cars).sort());
+  for (const model of playerNames()) {
+    const car = makeCar(model);
+    assert.ok(car.root && typeof car.setSteer === 'function' && typeof car.paint === 'function', `${model}: builds`);
+    assert.equal(!!car.eye, model === 'ferrari', `${model}: only the Ferrari has a driver's eye`);
+    let levels = 0;
+    car.root.traverse((o) => { if (o.name.startsWith('LOD')) levels++; });
+    assert.ok(model === 'ferrari' || model === 'mustang' || levels === 1, `${model}: the player's car uses only the best detail level (${levels})`);
+  }
+  assert.ok(trafficNames().length >= 4, 'a mix of traffic models');
+  assert.ok(!trafficNames().includes('ferrari') && !trafficNames().includes('mustang') && !trafficNames().includes('nissan'), 'sports and vintage cars are not in traffic');
+  const t = makeTrafficCar(0, 0xc8102e);
+  let lod = null;
+  t.root.traverse((o) => { if (o.isLOD) lod = o; });
+  assert.ok(lod && lod.levels.length >= 4, 'distance detail levels plus a cull level');
+  assert.ok(lod.levels[0].distance === 0 && lod.levels.at(-1).distance === CAR.library.cullDistance);
+  assert.throws(() => makeCar('supra'), /not loaded/, 'there are no built-in cars to fall back on');
+});
+
+const key = (game, code, repeat = false) => game.onKey({ code, repeat, preventDefault() {} });
+const pick = (game, name) => {            // choose a car the way a player does: Space, arrows to it, Space
+  key(game, 'Space');
+  for (let guard = 0; game.selector.current !== name && guard < 20; guard++) key(game, 'ArrowRight');
+  key(game, 'Space');
+};
+
+test('camera: cars without a cockpit stay in the chase view, and switching to one leaves the cockpit view', () => {
+  const { game } = makeGame({ traffic: 0 });
+  key(game, 'KeyC');
+  assert.equal(game.chase.mode, 'cockpit', 'the Ferrari has a cockpit');
+  pick(game, 'camry');
+  assert.equal(game.player.model, 'camry');
+  assert.equal(game.chase.mode, 'chase', 'choosing a car without a cockpit leaves the cockpit view');
+  key(game, 'KeyC');
+  assert.equal(game.chase.mode, 'chase', 'C does nothing in a car without a cockpit');
+  run(game, 0.2);
+  pick(game, 'ferrari');
+  key(game, 'KeyC');
+  assert.equal(game.chase.mode, 'cockpit');
+});
+
+test('showroom: every pipeline car points at a detailed model file that exists; the Ferrari and Mustang need none', async () => {
+  const { existsSync } = await import('node:fs');
+  const { hasShowroom, makeShowroomCar } = await import('../src/vehicles/carLibrary.js');
+  for (const [name, spec] of Object.entries(CAR.library.cars)) {
+    const pipeline = !spec.raw && spec.kind !== 'ferrari';
+    assert.equal(!!spec.showroom, pipeline, `${name}: showroom file only for pipeline cars`);
+    if (spec.showroom) assert.ok(existsSync(new URL('../' + spec.showroom, import.meta.url)), `${name}: ${spec.showroom} exists`);
+    assert.equal(hasShowroom(name), false);
+    assert.ok(makeShowroomCar(name).root, `${name}: the selector can show the normal model until the detailed one loads`);
   }
 });
 
-test('settings: choosing a car swaps the player model', () => {
-  const { game } = makeGame();
-  const before = game.player.car.root;
-  const select = dom.elements.get('car');
-  select.value = 'gtr';
-  select.dispatch('change');
-  assert.equal(game.player.model, 'gtr');
+test('car selector: Space opens it, arrows cycle the carousel, Space chooses, Esc cancels, and the game is paused meanwhile', () => {
+  const { game, input, audio } = makeGame({ traffic: 0 });
+  const before = game.player.car.root, names = Object.keys(CAR.library.cars);
+  input.value.throttle = 1;
+  run(game, 0.5);
+  const x0 = game.player.x, z0 = game.player.z;
+
+  key(game, 'Space');
+  assert.equal(game.selector.isOpen, true);
+  assert.equal(game.garage.calls[0][0], 'show');
+  assert.equal(game.garage.calls[0][1], 'ferrari', 'starts on the current car');
+  assert.equal(audio.paused, true, 'sound is paused');
+  run(game, 1);
+  assert.equal(game.player.x, x0); assert.equal(game.player.z, z0, 'the game is frozen while the selector is open');
+
+  key(game, 'ArrowRight');
+  assert.equal(game.selector.current, names[1]);
+  key(game, 'ArrowLeft'); key(game, 'ArrowLeft');
+  assert.equal(game.selector.current, names.at(-1), 'wraps round to the last car');
+  assert.deepEqual(game.garage.calls.at(-1).slice(0, 2), ['showCar', names.at(-1)]);
+  key(game, 'ArrowRight');
+  key(game, 'KeyC');
+  assert.equal(game.chase.mode, 'chase', 'C does nothing while choosing');
+
+  key(game, 'Escape');
+  assert.equal(game.selector.isOpen, false);
+  assert.equal(game.player.model, 'ferrari', 'Esc keeps the current car');
+  assert.equal(audio.paused, false);
+  assert.equal(game.player.car.root, before);
+
+  key(game, 'Space');
+  key(game, 'ArrowRight');
+  key(game, 'Space', true);                                   // a held key does not toggle
+  assert.equal(game.selector.isOpen, true);
+  key(game, 'Space');
+  assert.equal(game.selector.isOpen, false);
+  assert.equal(game.player.model, names[1], 'the car on show is chosen');
   assert.notEqual(game.player.car.root, before);
   assert.equal(game.scene.children.includes(before), false);
   assert.equal(game.scene.children.includes(game.player.car.root), true);
+  assert.equal(dom.elements.get('carname').textContent, CAR.library.cars[names[1]].label, 'the settings panel names the car');
+  assert.equal(audio.voice, names[1], 'the engine voice follows');
+  run(game, 0.3);
+  assert.ok(game.player.x !== x0 || game.player.z !== z0, 'driving resumes');
 });
 
 test('settings: the cog opens and closes the panel', () => {
@@ -413,6 +487,71 @@ test('camera: stays above and behind the car', () => {
   assert.ok(behind > 3, `camera should be behind the car, but is ${behind} behind`);
   assert.ok(c.y > p.gys + 3, 'camera is above the car');
   assert.ok(Math.hypot(dx, dz) < 25);
+});
+
+test('camera: C switches to the cockpit view (the driver\'s eye, facing forward) and back', () => {
+  const { game, input } = makeGame({ traffic: 0 });
+  input.value.throttle = 1;
+  run(game, 1);
+  const p = game.player;
+  assert.equal(game.chase.mode, 'chase');
+  game.onKey({ code: 'KeyC', repeat: false });
+  assert.equal(game.chase.mode, 'cockpit');
+  run(game, 0.5);
+  const c = game.camera.position;
+  assert.ok(Math.hypot(c.x - p.x, c.z - p.z) < 2.5, 'the cockpit camera is inside the car');
+  assert.ok(c.y > p.gys + 0.8 && c.y < p.gys + 2.5, 'at driver eye height');
+  const look = game.camera.getWorldDirection(new THREE.Vector3());
+  assert.ok(look.x * Math.sin(p.h) + look.z * Math.cos(p.h) > 0.9, 'looking along the car\'s heading');
+  game.onKey({ code: 'KeyC', repeat: true });                      // key repeat must not flip it again
+  assert.equal(game.chase.mode, 'cockpit');
+  game.onKey({ code: 'KeyC', repeat: false });
+  assert.equal(game.chase.mode, 'chase');
+});
+
+test('cars: the Ferrari steering wheel turns with the steering, in proportion to the road wheels', () => {
+  const { game, input } = makeGame({ traffic: 0 });
+  game.player.setModel('ferrari');
+  const wheel = game.player.car.tilt.children.find((o) => !o.isMesh && o.children.some((c) => c.name === 'steering_leather'));
+  assert.ok(wheel, 'steering-wheel group exists');
+  input.value.steer = 1;
+  run(game, 1);                                              // parked: no throttle, so nothing can crash and reset the steering
+  const angle = 2 * Math.acos(Math.min(1, Math.abs(wheel.quaternion.w)));
+  assert.ok(Math.abs(angle - CAR.steeringWheelLock) < 0.1, `wheel turned ${angle.toFixed(2)} rad, expected ${CAR.steeringWheelLock}`);
+  assert.ok(Math.abs(game.player.car.front[0].rotation.y - CAR.roadWheelLock) < 0.05, 'road wheels turn too');
+});
+
+test('city: every edge shared with a highway gets a real road (surface, dashes and junction patches)', () => {
+  const { game } = makeGame({ traffic: 0 });
+  placeAt(game, -5 * 100 + 50, -4 * 100 + 50);
+  game.chunks.update(game.player.gx, game.player.gz, Infinity);
+  const cell = game.chunks.get(-5, -4);                // west edge of the city borders highway cell (-6, -4)
+  const roads = [];
+  cell.group.traverse((o) => { if (o.isMesh && o.material === getAssets().mats.highway) roads.push(o); });
+  assert.ok(roads.length >= 2, `perimeter road ribbon + junction patches expected, got ${roads.length} meshes`);
+  const interior = game.chunks.get(-4, -4);            // an interior cell has no perimeter road
+  let interiorRoads = 0;
+  interior.group.traverse((o) => { if (o.isMesh && o.material === getAssets().mats.highway) interiorRoads++; });
+  assert.equal(interiorRoads, 0);
+});
+
+test('parked cars: a pool of Camrys follows the player and sits in the recorded parking slots', async () => {
+  const { game } = makeGame({ traffic: 0 });
+  const pm = game.parkedCars, { PARKED } = await import('../src/config.js');
+  assert.ok(pm.active > 0 && pm.active <= PARKED.count, `${pm.active} parked cars near the start`);
+  const slots = [...game.chunks.parked.values()].flat();
+  for (const p of pm.pool.filter((q) => q.slot)) {
+    const [cell, n] = p.slot.split(':');
+    const s = game.chunks.parked.get(cell)[n];
+    const [wx, wz] = toWorld(s.x, s.z);
+    assert.ok(Math.hypot(p.car.root.position.x - wx, p.car.root.position.z - wz) < 0.01, 'car is on its slot');
+    assert.ok(p.car.root.visible);
+  }
+  assert.ok(slots.length > pm.active, 'only the slots nearest the player have cars');
+  placeAt(game, 3000, 3000);                                       // far away: nothing is near, so nothing is parked
+  game.chunks.update(game.player.gx, game.player.gz, Infinity);
+  pm.refresh(game.player.gx, game.player.gz);
+  assert.ok(pm.active <= PARKED.count && pm.pool.every((p) => !p.slot || game.chunks.parked.has(p.slot.split(':')[0])), 'slots follow the player');
 });
 
 test('HUD: speed and money are displayed', () => {

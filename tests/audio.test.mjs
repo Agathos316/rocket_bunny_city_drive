@@ -5,8 +5,8 @@ import { installDom } from './helpers/dom.mjs';
 import { fakeAudioContext } from './helpers/audio.mjs';
 
 installDom();
-const { AudioManager, engineModel, zoneAt } = await import('../src/audio.js');
-const { AUDIO, C } = await import('../src/config.js');
+const { AudioManager, engineModel, zoneAt, voiceFor } = await import('../src/audio.js');
+const { AUDIO, C, CAR, SOUNDS } = await import('../src/config.js');
 
 const doc = { hidden: false, handlers: {}, addEventListener(t, f) { this.handlers[t] = f; }, removeEventListener() {} };
 function make() {
@@ -192,3 +192,68 @@ test('visibility: audio suspends while the tab is hidden and resumes when it ret
   audio.dispose();
   assert.equal(ctx.closed, true);
 });
+
+test('voices: every car has an engine voice, and the voices really differ', () => {
+  for (const [name, spec] of Object.entries(CAR.library.cars)) assert.ok(SOUNDS[spec.sound], `${name} has a sound`);
+  const idle = (n) => engineModel(0, 0, voiceFor(n)).freq, top = (n) => engineModel(58, 1, voiceFor(n)).freq;
+  assert.ok(idle('mustang') < idle('camry') && idle('mustang') < idle('ferrari'), 'the Mustang rumbles lowest');
+  assert.ok(top('ferrari') > top('nissan') && top('ferrari') > top('mustang') && top('ferrari') > top('camry'), 'the Ferrari revs highest');
+  assert.ok(voiceFor('mustang').gain > voiceFor('nissan').gain && voiceFor('nissan').gain > voiceFor('camry').gain, 'beefier cars are louder: Mustang > Nissan > Camry');
+  assert.ok(voiceFor('camry').cutoffBase + voiceFor('camry').cutoffRange < voiceFor('ferrari').cutoffBase + voiceFor('ferrari').cutoffRange, 'the Camry is gentler (duller) than the Ferrari');
+  assert.equal(engineModel(40, 1, voiceFor('camry')).gear === engineModel(40, 1, voiceFor('mustang')).gear, false, 'different gearboxes');
+});
+
+test('voices: an electric voice has no gear shifts, is silent when stopped and whines with speed', () => {
+  SOUNDS.testEv = { ev: true, wave1: 'sine', wave2: 'sine', waveSub: 'sine', idleHz: 60, rangeHz: 80, gearSpeeds: [0, 58], detune: 1.0, mix: [0.3, 0.1, 0.3], gain: 0.35, road: 1.6, whine: { base: 230, perSpeed: 44, gain: 0.012 } };
+  const ev = voiceFor('testEv');
+  let last = 0;
+  for (let v = 0; v <= 58; v += 0.5) {
+    const f = engineModel(v, 1, ev).freq;
+    assert.ok(f >= last - 1e-9, `pitch only ever rises (${v})`);
+    last = f;
+  }
+  const { audio } = make();
+  audio.setVoice('testEv');
+  audio.unlock();
+  audio.update(0.016, state({ speed: 0, throttle: 0 }));
+  assert.equal(audio._engine.whineGain.gain.value, 0, 'no whine when stopped');
+  assert.equal(audio._engine.gain.gain.value, 0, 'silent engine when stopped');
+  audio.update(0.016, state({ speed: 20, throttle: 1 }));
+  const w20 = audio._engine.whine.frequency.value;
+  assert.ok(audio._engine.whineGain.gain.value > 0, 'whine at speed');
+  audio.update(0.016, state({ speed: 45, throttle: 1 }));
+  assert.ok(audio._engine.whine.frequency.value > w20, 'whine rises with speed');
+  assert.equal(audio._engine.saw1.type, 'sine', 'a smooth tone, not a sawtooth engine');
+  delete SOUNDS.testEv;
+});
+
+test('voices: switching car changes the engine at once, before or after the audio context exists', () => {
+  const { audio } = make();
+  audio.setVoice('mustang');                    // before unlock
+  audio.unlock();
+  assert.equal(audio._engine.saw2.type, 'square', 'applied when the graph is built');
+  assert.ok(Math.abs(audio._engine.g2.gain.value - voiceFor('mustang').mix[1]) < 1e-9);
+  audio.setVoice('camry');                      // after
+  assert.equal(audio._engine.saw2.type, 'triangle');
+  audio.update(0.016, state({ speed: 30, throttle: 1 }));
+  audio.setVoice('ferrari');
+  audio.update(0.016, state({ speed: 30, throttle: 1 }));
+  assert.ok(audio._engine.filter.Q.value > 1.5, 'the Ferrari is more resonant');
+});
+
+test('pause: the car selector silences the game without touching the Sound setting', () => {
+  const { audio } = make();
+  audio.unlock();
+  const level = () => audio._master.gain.value;
+  assert.equal(level(), audio.volume);
+  audio.setPaused(true);
+  assert.equal(level(), 0, 'silent while paused');
+  assert.equal(audio.enabled, true, 'the Sound checkbox is unaffected');
+  audio.setVolume(0.3);
+  assert.equal(level(), 0, 'changing the volume while paused stays silent');
+  audio.setPaused(false);
+  assert.equal(level(), 0.3, 'back at the chosen volume');
+  audio.setEnabled(false); audio.setPaused(true); audio.setPaused(false);
+  assert.equal(level(), 0, 'muted stays muted');
+});
+

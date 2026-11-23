@@ -1,6 +1,6 @@
 # Rocket Bunny City Drive
 
-A browser driving game. Drive a Rocket Bunny widebody sports car through an endless, self-generating world:
+A browser driving game. Drive a sports car through an endless, self-generating world:
 a city of towers, traffic lights and parked cars; rivers with ramped bridges; then highways with hills,
 tunnels, bridges and sweeping interchanges; a desert; and the next city. Hit another car and you restart at the
 start line with your money reset to zero.
@@ -27,16 +27,18 @@ Pages URL. Any static file server works too.
 | ↑ | Accelerate |
 | ↓ | Brake, then reverse |
 | ← → | Steer (combine freely with ↑ / ↓) |
-| ⚙ (bottom left) | Settings: choose your car, set the amount of traffic, sound on/off and volume |
+| Space | Change car: the game blurs out and a 3D model of a car turns slowly on a podium. ← → move through the cars like a carousel, Space chooses the one on show, Esc cancels. The game (and the sound) is paused while it is open |
+| C | Switch camera: chase view / cockpit view (the driver's eye, behind the steering wheel) |
+| ⚙ (bottom left) | Settings: the amount of traffic, sound on/off and volume |
 
-Cars: Toyota Supra, Ford Mustang, Porsche 911, Nissan GT-R, Honda Civic Type R — all with the Rocket Bunny kit.
+Cars: every vehicle in the game is a 3D model loaded from `assets/models/` (nothing is built in code; sources and licences are in that folder's README). You choose between a Ferrari 458 Italia (with a modelled cockpit whose steering wheel turns), a Nissan GT-R R35 Liberty Walk, a 1965 Ford Mustang Fastback, a Toyota Camry, an Audi RS6 Avant, a BMW M4 and a Volkswagen Golf. Traffic and the kerbside parked cars are a mix of the Camry, Audi, BMW and Golf in different colours. **C** switches between the chase view and the driver's view, which is available in the Ferrari only (the others stay in the chase view). Cars are drawn at three levels of detail by distance, so distant cars cost very little, and parked cars are drawn for the slots nearest you (a pool of 48, `src/traffic/parkedManager.js`).
 
 ## Sound
 
 All sound is synthesised live with the browser's Web Audio API (`src/audio.js`); there are no audio files and no
 dependencies.
 
-- **Engine:** pitch follows your speed through a five-speed gearbox (it climbs, then drops at each shift) and is
+- **Engine:** pitch follows your speed through a gearbox (it climbs, then drops at each shift) and is duller when you lift off the throttle. **Each car has its own voice** (`SOUNDS` in `src/config.js`): the Mustang is a low, lumpy, loud V8 burble; the Nissan is beefy with a turbo whistle; the Ferrari revs highest and brightest; the Camry and Golf are gentle; the Audi and BMW sit in between. The voice changes when you choose a different car.
   duller when you lift off the throttle.
 - **Road and wind:** road noise and wind grow with speed and stop while you are airborne; tyres squeal when you
   corner or brake hard at speed.
@@ -49,6 +51,7 @@ checkbox and Volume slider are in the settings panel. Sound also pauses while th
 
 ## What is in the world
 
+- Perimeter roads: wherever a city block borders a highway ring it gets a real road (surface, centre dashes) with a proper junction where highway roads arrive.
 - Cities: bent (not ruler-straight) roads, four road styles, traffic lights, kerbside parking, speed bumps,
   petrol stations, rounded footpaths, rivers crossed by ramped bridges.
 - Highways: rolling hills, tunnels, bridges, interchanges, faster traffic. Highway rings alternate between green
@@ -67,20 +70,22 @@ src/
   game.js               Game: owns the systems below, runs the loop, decides what a crash means
   config.js             every tunable number (physics, traffic, camera, world size, car list, key map)
   input.js              InputManager: keyboard -> { throttle, brake, steer }; extra sources can be added
-  camera.js             ChaseCamera (above and behind the car)
+  camera.js             ChaseCamera: chase view and cockpit view (C)
   renderer.js           WebGL renderer setup
   environment.js        sky, sun + shadows, fog, ground
   assets.js             materials and procedural textures
   audio.js              AudioManager: procedural engine, road, ambience and impact sounds
   collisions.js         blocks, bumps, parked cars, traffic
-  vehicles/             car models (lofted shells), car factory, player car + physics, parked cars
+  vehicles/             the car library (loads and builds every vehicle from glTF files, with distance detail levels), player car + physics
   traffic/              TrafficManager: lanes, turns, following, traffic lights, recycling
-  world/                zones (pure world-shape functions), cell generators, chunk streaming, signals
-  ui/                   HUD and settings panel
+  world/                zones (pure world-shape functions), cell generators, trees, chunk streaming, signals
+  ui/                   HUD, settings panel and the car selector (Space)
   util/                 seeded RNG, maths, geometry Batcher
 tests/                  Node tests (zones, whole-game integration) + browser smoke test
 tools/serve.mjs         tiny static server used by `npm start` and the browser test
-vendor/three/           three.js r128 (ES module build + BufferGeometryUtils), MIT licensed
+vendor/three/           three.js r128 (ES module build, BufferGeometryUtils, GLTFLoader, DRACOLoader + decoder, SkeletonUtils), MIT licensed
+assets/models/         the glTF car library (see its README for sources and licences)
+tools/car-pipeline/    offline scripts that turned big car models into the game-ready files
 ```
 
 ## How it works
@@ -115,7 +120,7 @@ npm test             # Node's built-in runner, no dependencies, ~15 s
 npm run test:browser # Playwright + headless Chromium smoke test (see below)
 ```
 
-`npm test` runs 59 tests:
+`npm test` runs 69 tests:
 
 - the pure world functions (zones, rivers, stations, heights, the warp and its inverse, terrain carved below roads);
 - the whole `Game` headless against a stub DOM and a fake renderer: boot, acceleration and money, up+left combining,

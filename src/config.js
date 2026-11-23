@@ -38,14 +38,48 @@ export const RENDER = {
 
 /* ---------- vehicles ---------- */
 export const CAR = {
-  scale: 1.5,                    // model units -> world units
-  wheelRadius: 0.37,             // before scale
-  playerColor: 0xff6a00,
-  defaultModel: 'supra',
-  models: ['supra', 'mustang', 'porsche', 'gtr', 'civic'],
-  trafficColors: [0x1e5fd6, 0xc8102e, 0x0b4ea2, 0xf4f4f2, 0x7d8087, 0xf7c600, 0x6cc4e8, 0xb30f1d, 0x1a1b1e, 0x2f7a48, 0xff7a00],
-  parkedColors: [0x1e88ff, 0xe5173f, 0x7ad100, 0xf2f2f2, 0x8e3bff, 0xffd000, 0x00c2b0, 0xff4fa0, 0x2a2a2a, 0xff6a00],
-  blackRoofChance: 0.4,          // share of traffic cars with a black roof
+  scale: 1.5,                    // Ferrari: model units (metres) -> world units
+  playerColor: 0xff6a00,         // paint of the Ferrari
+  defaultModel: 'ferrari',
+  steeringWheelLock: 1.2,        // steering-wheel rotation (rad) at full lock; the road wheels turn roadWheelLock
+  roadWheelLock: 0.5,
+  /**
+   * Every vehicle in the game is a glTF model from this library (nothing is built in code); see assets/models/README.md.
+   * Each entry is a car you can drive. `traffic: true` also puts it in traffic and at the kerb. `paint` names the body-paint
+   * material, which can be recoloured (traffic cars come in several colours). `cockpit` cars have a modelled interior,
+   * so the C key switches to the driver's view; for the others C does nothing. Models built by tools/car-pipeline have
+   * three detail levels (nodes LOD0..LOD2), nose towards +z, in metres. `showroom` is a much more detailed version
+   * (100-170k triangles), loaded only when the car selector shows the car, and swapped in when it arrives.
+   */
+  library: {
+    dracoPath: './vendor/three/examples/jsm/libs/draco/gltf/',
+    lodDistances: [28, 75],      // world units from the camera: level 1 beyond the first, level 2 beyond the second
+    cullDistance: 235,           // cars further than this are not drawn at all (it is all fog out there)
+    cars: {
+      ferrari: {
+        sound: 'ferrari',
+        label: 'Ferrari 458 Italia', kind: 'ferrari', url: './assets/models/ferrari.glb', cockpit: true,
+        rotateY: Math.PI,        // the model's nose is -z; the game's cars face +z
+        steerCentre: [-0.35, 0.8, -0.35],   // steering wheel hub and column axis, in the file's own coordinates
+        steerAxis: [0, 0.327, 0.945],
+        eye: [-0.35, 1.0, 0.1],  // the driver's eye
+      },
+      nissan: { sound: 'nissan', label: 'Nissan GT-R R35 (Liberty Walk)', url: './assets/models/cars/nissan.glb', showroom: './assets/models/cars/hi/nissan.glb', paint: 'r35_paint' },
+      mustang: { sound: 'mustang', label: 'Ford Mustang Fastback (1965)', url: './assets/models/cars/mustang.glb', raw: true, rotateY: Math.PI, scale: 0.82 },   // not from the pipeline: skinned, already in metres, nose towards -z,
+      camry: { sound: 'camry', label: 'Toyota Camry', url: './assets/models/cars/camry.glb', showroom: './assets/models/cars/hi/camry.glb', paint: 'Paint_Color', traffic: true },
+      audi: { sound: 'audi', label: 'Audi RS6 Avant', url: './assets/models/cars/audi.glb', showroom: './assets/models/cars/hi/audi.glb', paint: 'CarPrimaryColor', traffic: true },
+      bmw: { sound: 'bmw', label: 'BMW M4', url: './assets/models/cars/bmw.glb', showroom: './assets/models/cars/hi/bmw.glb', traffic: true },
+      golf: { sound: 'golf', label: 'Volkswagen Golf', url: './assets/models/cars/golf.glb', showroom: './assets/models/cars/hi/golf.glb', traffic: true },
+    },
+    trafficColors: [0xe6e6e2, 0x15161a, 0x5a5d63, 0x62081a, 0x123c8f, 0x0b2f6b, 0x6e7076, 0x1f3a2c, 0x4a1212, 0xb0aa98, 0x2a2d33, 0x8a4a1a],   // deep colours: the bright sun and tone mapping wash paint out
+  },
+};
+
+/** Parked cars are drawn for the slots nearest the player only (see traffic/parkedManager.js). */
+export const PARKED = {
+  count: 48,                     // cars in the pool (far ones are drawn with very few triangles)
+  radius: 200,                   // only slots within this many units of the player (grid units)
+  refreshSeconds: 0.25,
 };
 
 export const DRIVE = {
@@ -59,9 +93,9 @@ export const DRIVE = {
   coastBase: 2.5,                // engine braking when no pedal is pressed
   coastPerSpeed: 0.2,
   steerSmoothing: 7,             // how quickly the wheel follows the key
-  steerRate: 2.6,                // yaw rate at full lock
+  steerRate: 3.6,                // yaw rate at full lock
   steerSpeedFloor: 5,            // below this speed the car barely turns
-  steerSpeedFalloff: 20,         // above this speed steering is progressively reduced
+  steerSpeedFalloff: 24,         // above this speed steering is progressively reduced
   accelSmoothing: 6,             // pitch response
   gravity: 30,
   moneyPerMetre: 0.2,
@@ -79,13 +113,15 @@ export const COLLISION = {
 };
 
 export const CAMERA = {
-  distance: 14,
-  height: 7.6,
-  lookAhead: 5,
-  lookHeight: 1.4,
+  distance: 8.5,                 // chase camera: behind and above the car
+  height: 3.6,
+  lookAhead: 6,
+  lookHeight: 1.5,
   followHeading: 4.5,            // how quickly the camera swings round behind the car
   followPosition: 12,
-  minAboveGround: 2.5,
+  minAboveGround: 1.6,
+  cockpitFov: 72,
+  cockpitNear: 0.1,
   fovSpeedGain: 0.28,
 };
 
@@ -129,6 +165,29 @@ export const KEYMAP = {
   brake: ['ArrowDown'],
   left: ['ArrowLeft'],
   right: ['ArrowRight'],
+  camera: ['KeyC'],             // switch between the chase camera and the cockpit view
+  select: ['Space'],            // open the car selector; Space again chooses the car on show (arrows move, Esc cancels)
+};
+
+/**
+ * Engine voices, one per car (CAR.library.cars[x].sound). Each shapes the synthesised engine:
+ *   wave1/wave2/waveSub  oscillator shapes (sawtooth is buzzy, triangle soft, square hollow)   mix  their levels
+ *   idleHz, rangeHz      engine pitch at idle and added at the redline    gearSpeeds  where the gearbox shifts (m/s)
+ *   detune               second oscillator's offset (a bigger value is a lumpier, more V8-like rumble)
+ *   cutoffBase/Range     brightness of the note at idle and added at the redline    resonance  how throaty (filter Q)
+ *   gain                 loudness relative to the default    road  tyre-noise multiplier
+ *   whine                optional extra tone { base, perSpeed, gain, throttleOnly }  (an EV's motor, a turbo's whistle)
+ *   ev                   true: silent when stopped, no gear shifts, a whine instead of an engine note
+ * Anything left out takes the value in DEFAULT_VOICE (audio.js), which is the original engine sound.
+ */
+export const SOUNDS = {
+  ferrari: { idleHz: 56, rangeHz: 215, gearSpeeds: [0, 12, 24, 36, 48, 58], detune: 1.003, mix: [0.5, 0.4, 0.25], cutoffBase: 520, cutoffRange: 2700, resonance: 1.9, gain: 1.05 },
+  nissan: { idleHz: 38, rangeHz: 150, gearSpeeds: [0, 11, 22, 34, 46, 58], detune: 1.008, mix: [0.5, 0.45, 0.75], cutoffBase: 380, cutoffRange: 2100, resonance: 1.7, gain: 1.15, whine: { base: 900, perSpeed: 16, gain: 0.012, throttleOnly: true } },
+  mustang: { wave2: 'square', idleHz: 30, rangeHz: 100, gearSpeeds: [0, 14, 28, 43, 58], detune: 1.015, mix: [0.5, 0.3, 1.0], cutoffBase: 300, cutoffRange: 1500, resonance: 2.3, gain: 1.3 },
+  camry: { wave2: 'triangle', idleHz: 44, rangeHz: 108, gearSpeeds: [0, 10, 20, 31, 43, 58], detune: 1.004, mix: [0.32, 0.4, 0.4], cutoffBase: 260, cutoffRange: 1000, resonance: 0.8, gain: 0.72 },
+  golf: { wave2: 'square', idleHz: 50, rangeHz: 125, gearSpeeds: [0, 9, 19, 30, 43, 58], detune: 1.005, mix: [0.34, 0.14, 0.4], cutoffBase: 320, cutoffRange: 1400, resonance: 1.0, gain: 0.8 },
+  audi: { idleHz: 40, rangeHz: 125, gearSpeeds: [0, 11, 22, 34, 46, 58], detune: 1.007, mix: [0.45, 0.35, 0.5], cutoffBase: 340, cutoffRange: 1700, resonance: 1.3, gain: 0.95 },
+  bmw: { wave2: 'triangle', idleHz: 46, rangeHz: 145, gearSpeeds: [0, 11, 22, 34, 46, 58], detune: 1.004, mix: [0.45, 0.3, 0.4], cutoffBase: 420, cutoffRange: 1900, resonance: 1.2, gain: 0.9 },
 };
 
 /** Procedurally synthesised sound (Web Audio). No audio files are used. */

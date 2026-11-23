@@ -7,7 +7,7 @@
 import { CAR, DRIVE, START } from '../config.js';
 import { clamp } from '../util/math.js';
 import { sgrid, toGrid, toWorld, worldHeading } from '../world/zones.js';
-import { disposeCar, makeCar } from './carFactory.js';
+import { disposeCar, hasCockpit, hasShowroom, loadShowroom, makeCar } from './carLibrary.js';
 
 /** Start pose in world space: the grid start point, bent by the world warp. */
 export function startPose() {
@@ -21,8 +21,7 @@ export class PlayerCar {
     this.start = startPose();
     this.model = CAR.defaultModel;
     this.reset();
-    this.car = makeCar(CAR.playerColor, true, this.model);
-    scene.add(this.car.root);
+    this.install(this.model);
   }
 
   /** Back to the start line, standing still, with no money. */
@@ -44,13 +43,38 @@ export class PlayerCar {
     [this.gx, this.gz] = toGrid(this.x, this.z);
   }
 
+  /** True if the current car has a modelled interior, so the driver's-eye view is available. */
+  get hasCockpit() {
+    return hasCockpit(this.model);
+  }
+
   /** Swap the car model. */
   setModel(name) {
     this.scene.remove(this.car.root);
     disposeCar(this.car);
     this.model = name;
-    this.car = makeCar(CAR.playerColor, true, name);
+    this.install(name);
+  }
+
+  /**
+   * Build the mesh for `name` and add it to the scene. The player's own car uses the detailed showroom model: it
+   * is mostly seen from behind and close up. If that has not been loaded yet (the car was never shown in the car selector),
+   * the normal model is used meanwhile and the detailed one replaces it when it arrives.
+   */
+  install(name) {
+    this.car = makeCar(name);
     this.scene.add(this.car.root);
+    if (!CAR.library.cars[name].showroom || hasShowroom(name)) return;
+    loadShowroom(name).then((ok) => {
+      if (!ok || this.model !== name || !hasShowroom(name)) return;
+      const old = this.car;
+      this.car = makeCar(name);
+      this.car.root.position.copy(old.root.position);
+      this.car.root.rotation.copy(old.root.rotation);
+      this.scene.remove(old.root);
+      disposeCar(old);
+      this.scene.add(this.car.root);
+    });
   }
 
   /** Throttle, brake and steering for one step. `input` is { throttle, brake, steer } from the input manager. */
@@ -105,8 +129,9 @@ export class PlayerCar {
     root.rotation.y = this.h;
     tilt.rotation.z = this.steer * clamp(Math.abs(this.v) / 35, 0, 1) * 0.06;
     tilt.rotation.x = -this.acc * 0.0013 + clamp(this.vy, -4, 4) * -0.01 - Math.atan(this.sl);
-    const spinStep = this.v * dt / (CAR.wheelRadius * CAR.scale);
+    const spinStep = this.v * dt / this.car.wheelR;
     for (const w of spin) w.rotation.x += spinStep;
-    for (const f of front) f.rotation.y = this.steer * 0.45;
+    for (const f of front) f.rotation.y = this.steer * CAR.roadWheelLock;
+    this.car.setSteer?.(this.steer);
   }
 }

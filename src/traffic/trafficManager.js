@@ -9,7 +9,7 @@
  */
 import { C, RD, CAR, TRAFFIC, SIGNALS } from '../config.js';
 import { angDiff } from '../util/math.js';
-import { makeCar } from '../vehicles/carFactory.js';
+import { makeTrafficCar } from '../vehicles/carLibrary.js';
 import { Hr, cityBridgeY, isHwy, roadAt, toWorld, worldHeading } from '../world/zones.js';
 
 /** Is there a road leaving intersection (ci, cj) in direction (dx, dz)? */
@@ -36,7 +36,7 @@ export class TrafficManager {
   setCount(n, player) {
     while (this.cars.length < n) {
       const i = this.cars.length;
-      const car = makeCar(CAR.trafficColors[i % CAR.trafficColors.length], false, CAR.models[i % CAR.models.length]);
+      const car = makeTrafficCar(i, CAR.library.trafficColors[(i * 5) % CAR.library.trafficColors.length]);
       this.scene.add(car.root);
       this.cars.push({ car, on: false });
     }
@@ -117,7 +117,7 @@ export class TrafficManager {
       }
 
       this.pose(a);
-      const wheelStep = a.speed * dt / (CAR.wheelRadius * CAR.scale);
+      const wheelStep = a.speed * dt / a.car.wheelR;
       for (const w of a.car.spin) w.rotation.x += wheelStep;
       if (Math.hypot(a.x - pp.x, a.z - pp.z) > TRAFFIC.despawn) this.spawn(a, pp.x, pp.z);
     }
