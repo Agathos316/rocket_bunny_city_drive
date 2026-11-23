@@ -46,7 +46,19 @@
 <div id="loading" role="status" aria-live="polite">
   <video id="loading-art" src="assets/loading.mp4" poster="assets/loading.webp" autoplay muted loop playsinline preload="auto" aria-label="Rocket Bunny City Drive"></video>
   <div id="loading-bar"><i></i></div>
-  <span>Loading cars…</span>
+  <span id="loading-msg">Loading cars…</span>
+  <div id="intro">
+    <p class="tag">Pick your ride, cruise an endless city, and don't hit anything.</p>
+    <div class="keys">
+      <div><kbd>↑</kbd><span>Accelerate</span></div>
+      <div><kbd>↓</kbd><span>Brake / reverse</span></div>
+      <div><kbd>←</kbd><kbd>→</kbd><span>Steer</span></div>
+      <div><kbd>Space</kbd><span>Change car</span></div>
+      <div><kbd>C</kbd><span>Camera</span></div>
+    </div>
+    <p class="rules">Hit a car and you restart at the start, and your money resets.</p>
+    <button id="go" type="button">Press any key to drive</button>
+  </div>
 </div>
 
 <div id="crash">CRASH</div>
