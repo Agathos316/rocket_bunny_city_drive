@@ -73,9 +73,9 @@ try {
   await page.waitForTimeout(200);
   await page.screenshot({ path: OUT + '3-settings.png' });
   check(await page.isVisible('#set'), 'settings panel opens from the cog');
-  await page.selectOption('#car', 'race');
+  await page.selectOption('#car', 'tesla');
   await page.waitForTimeout(300);
-  check((await page.evaluate(() => window.rocketBunny.game.player.model)) === 'race', 'car selection changes the model');
+  check((await page.evaluate(() => window.rocketBunny.game.player.model)) === 'tesla', 'car selection changes the model');
 
   // ---- sound: measure what the Web Audio graph actually outputs (headless Chromium has a silent sink, but the
   // graph still runs, so an analyser on the master output sees the real signal). This proves the synthesis

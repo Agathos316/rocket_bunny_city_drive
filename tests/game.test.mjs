@@ -11,7 +11,7 @@ const { C, RAD, TRAFFIC, CAR, DRIVE } = await import('../src/config.js');
 const { toWorld, toGrid, worldHeading } = await import('../src/world/zones.js');
 const { InputManager } = await import('../src/input.js');
 const { TrafficSignals } = await import('../src/world/signals.js');
-const { makeCar, makeTrafficCar, playerNames } = await import('../src/vehicles/carLibrary.js');
+const { makeCar, makeTrafficCar, playerNames, trafficNames } = await import('../src/vehicles/carLibrary.js');
 const { ChunkManager } = await import('../src/world/chunkManager.js');
 const { TrafficSignals: Signals } = await import('../src/world/signals.js');
 const THREE = await import('three');
@@ -365,26 +365,50 @@ test('world streaming: leaving a cell behind frees it', () => {
   assert.equal(game.chunks.parked.has('0,0'), false);
 });
 
-test('cars: every player model builds with four spinning wheels, two steering, and a camera eye', () => {
-  assert.deepEqual(playerNames().sort(), Object.keys(CAR.library.player).sort());
+test('cars: every car in the library builds; only the Ferrari has a cockpit; traffic cars have distance detail levels', () => {
+  assert.deepEqual(playerNames().sort(), Object.keys(CAR.library.cars).sort());
   for (const model of playerNames()) {
     const car = makeCar(model);
-    assert.equal(car.spin.length, 4, `${model}: wheels`);
-    assert.equal(car.front.length, 2, `${model}: front wheels`);
-    assert.ok(car.wheelR > 0.3 && car.eye && typeof car.setSteer === 'function', `${model}: wheel radius, eye, setSteer`);
+    assert.ok(car.root && typeof car.setSteer === 'function' && typeof car.paint === 'function', `${model}: builds`);
+    assert.equal(!!car.eye, model === 'ferrari', `${model}: only the Ferrari has a driver's eye`);
+    let levels = 0;
+    car.root.traverse((o) => { if (o.name.startsWith('LOD')) levels++; });
+    assert.ok(model === 'ferrari' || model === 'mustang' || levels === 1, `${model}: the player's car uses only the best detail level (${levels})`);
   }
-  const camry = makeTrafficCar(0xc8102e);
-  assert.ok(camry.root && typeof camry.paint === 'function', 'traffic and parked cars are Camrys with their own paint');
+  assert.ok(trafficNames().length >= 5, 'a mix of traffic models');
+  assert.ok(!trafficNames().includes('ferrari') && !trafficNames().includes('mustang') && !trafficNames().includes('nissan'), 'sports and vintage cars are not in traffic');
+  const t = makeTrafficCar(0, 0xc8102e);
+  let lod = null;
+  t.root.traverse((o) => { if (o.isLOD) lod = o; });
+  assert.ok(lod && lod.levels.length >= 4, 'distance detail levels plus a cull level');
+  assert.ok(lod.levels[0].distance === 0 && lod.levels.at(-1).distance === CAR.library.cullDistance);
   assert.throws(() => makeCar('supra'), /not loaded/, 'there are no built-in cars to fall back on');
+});
+
+test('camera: cars without a cockpit stay in the chase view, and switching to one leaves the cockpit view', () => {
+  const { game, input } = makeGame({ traffic: 0 });
+  game.onKey({ code: 'KeyC', repeat: false });
+  assert.equal(game.chase.mode, 'cockpit', 'the Ferrari has a cockpit');
+  const select = dom.elements.get('car');
+  select.value = 'camry';
+  select.dispatch('change');
+  assert.equal(game.chase.mode, 'chase', 'choosing a car without a cockpit leaves the cockpit view');
+  game.onKey({ code: 'KeyC', repeat: false });
+  assert.equal(game.chase.mode, 'chase', 'C does nothing in a car without a cockpit');
+  run(game, 0.2);
+  select.value = 'ferrari';
+  select.dispatch('change');
+  game.onKey({ code: 'KeyC', repeat: false });
+  assert.equal(game.chase.mode, 'cockpit');
 });
 
 test('settings: choosing a car swaps the player model', () => {
   const { game } = makeGame();
   const before = game.player.car.root;
   const select = dom.elements.get('car');
-  select.value = 'race';
+  select.value = 'tesla';
   select.dispatch('change');
-  assert.equal(game.player.model, 'race');
+  assert.equal(game.player.model, 'tesla');
   assert.notEqual(game.player.car.root, before);
   assert.equal(game.scene.children.includes(before), false);
   assert.equal(game.scene.children.includes(game.player.car.root), true);

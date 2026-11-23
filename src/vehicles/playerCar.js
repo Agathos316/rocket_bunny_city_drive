@@ -7,7 +7,7 @@
 import { CAR, DRIVE, START } from '../config.js';
 import { clamp } from '../util/math.js';
 import { sgrid, toGrid, toWorld, worldHeading } from '../world/zones.js';
-import { disposeCar, makeCar } from './carLibrary.js';
+import { disposeCar, hasCockpit, makeCar } from './carLibrary.js';
 
 /** Start pose in world space: the grid start point, bent by the world warp. */
 export function startPose() {
@@ -42,6 +42,11 @@ export class PlayerCar {
 
   syncGrid() {
     [this.gx, this.gz] = toGrid(this.x, this.z);
+  }
+
+  /** True if the current car has a modelled interior, so the driver's-eye view is available. */
+  get hasCockpit() {
+    return hasCockpit(this.model);
   }
 
   /** Swap the car model. */

@@ -1,24 +1,28 @@
 # Car models
 
-| File | Model | Source | Notes |
-| --- | --- | --- | --- |
-| `ferrari.glb` | Ferrari 458 Italia (Spider) | the three.js examples (`examples/models/gltf/ferrari.glb`, three.js r128), credited there to [vicent091036](https://sketchfab.com/models/57bf6cc56931426e87494f554df1dab6) on Sketchfab | Draco-compressed, with a modelled cockpit and a separate steering wheel. **Check the licence on the Sketchfab page before shipping this commercially**; the model is a Ferrari-trademarked design. |
+Every vehicle in the game is one of these glTF files (nothing is built in code). They are loaded before the game
+starts by `src/vehicles/carLibrary.js`; the list is `CAR.library.cars` in `src/config.js`.
 
-The game loads these before it starts (`src/vehicles/carLibrary.js`); there are no built-in cars to fall back on, so a missing file shows the start-up error message. The Draco decoder it needs is in `vendor/three/examples/jsm/libs/draco/gltf/`.
+Models marked "pipeline" were prepared with `tools/car-pipeline` (mesh reduced into three detail levels, textures
+resized to 512 px, nose pointed along +z, scaled to the car's real length, Draco-compressed). Those changes are
+modifications of the originals.
 
-## Toyota Camry (`camry.glb`): traffic and parked cars
+| File | Car | Source and licence |
+| --- | --- | --- |
+| `ferrari.glb` | Ferrari 458 Italia (Spider), modelled cockpit | From the three.js examples, credited there to [vicent091036](https://sketchfab.com/models/57bf6cc56931426e87494f554df1dab6) on Sketchfab. **Licence not checked**; look at the Sketchfab page before a public release. |
+| `cars/camry.glb` | Toyota Camry 2020 (pipeline) | [ItsDiyor](https://sketchfab.com/ItsDiyor), [source](https://sketchfab.com/3d-models/toyota-camry-2020-236a5a6e2fa6420fbdf641f4800cd544), **CC BY 4.0** (stated in the file's metadata). The number plate texture carries the author's name. |
+| `cars/mustang.glb` | Ford Mustang Fastback 1965 (textures resized to 1024 px only; skinned, not pipelined) | [Godspeed](https://sketchfab.com/godspeedx14), [source](https://sketchfab.com/3d-models/rigged-car-mustang-1965-with-engine-3d-model-c2d4f0a6170d43f4a5a8303373ebb81a), **CC BY 4.0** (stated in the file's metadata). |
+| `cars/tesla.glb` | Tesla Model S, Prior widebody kit (pipeline) | Found in the public GitHub repository `RoeeSivan/theblock-unity` (`Assets/Models/Vehicles/Lot/tesla.glb`). **The file states no author or licence: unverified.** |
+| `cars/audi.glb` | Audi RS6 Avant (pipeline) | Same repository (`.../Lot/audi.glb`). **No author or licence stated: unverified.** |
+| `cars/bmw.glb` | BMW M4 2024 (pipeline) | Public repository `senol41tr/Customizer3D` (`examples/models/BMW/BMW.glb`). **No author or licence stated: unverified.** |
+| `cars/golf.glb` | Volkswagen Golf (pipeline; the source was 2.6M triangles and some small parts, such as the tail lights, suffered in the reduction) | Public repository `dong123123123/model` (`vw_golf.glb`). **No author or licence stated: unverified.** |
+| `cars/nissan.glb` | Nissan GT-R R35 with a Liberty Walk kit (pipeline) | Public repository `dvrch/Svelte-threlte-Onglet-multiprojets` (`static/models/nissan.glb`). **No author or licence stated: unverified.** |
 
-"Toyota Camry 2020" by [ItsDiyor](https://sketchfab.com/ItsDiyor) on Sketchfab
-([source](https://sketchfab.com/3d-models/toyota-camry-2020-236a5a6e2fa6420fbdf641f4800cd544)),
-licensed **CC BY 4.0** (http://creativecommons.org/licenses/by/4.0/). **Changes made:** the mesh was reduced (about
-177k to 21k triangles; `gltf-transform` weld and simplify) and the textures were resized to 512 px, to make it light
-enough for a game. The car's paint is recoloured in code. The number plate in the texture still carries the author's name.
-The copy was found in a public GitHub repository that vendors it; its Sketchfab licence is recorded in the original
-file's metadata. The Camry is a Toyota-trademarked design.
+**Before releasing this game publicly:** the four "unverified" cars (and the Ferrari) must have their licences
+confirmed, or be replaced. The files were found in other people's repositories, and the manufacturers' names and
+designs are also trademarks. Removing a car is just deleting its entry in `CAR.library.cars`, its option in
+`index.html`, and its file.
 
-## Kenney Car Kit (`kenney/`)
-
-`sedan-sports`, `hatchback-sports`, `race` and `race-future` (the cars you can drive), plus the shared
-`Textures/colormap.png`, are from the **Kenney Car Kit** by [Kenney](https://kenney.nl), released under **CC0**
-(public domain). The copies here came from public GitHub repositories that vendor the kit, since kenney.nl itself was
-not reachable from the build environment.
+Also found but **not used**: a Toyota Corolla by [Blender Boy](https://sketchfab.com/Blender_Boy1) (CC BY-SA 4.0:
+share-alike, and the file came out with its parts scattered when processed) and a Honda file that is a dealership
+building.

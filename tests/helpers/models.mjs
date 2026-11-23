@@ -10,12 +10,15 @@ function box(w, h, d, x, y, z, name, material) {
   return m;
 }
 
-/** A Kenney-style car: a body plus four wheels, nose towards +z. */
-export function fakeKenney(length = 2.6) {
-  const scene = new THREE.Group(), mat = new THREE.MeshStandardMaterial({ color: 0xffffff });
-  scene.add(box(1.4, 0.7, length, 0, 0.7, 0, 'body', mat));
-  for (const [id, x, z] of [['wheel-front-left', 0.43, length * 0.27], ['wheel-front-right', -0.43, length * 0.27], ['wheel-back-left', 0.43, -length * 0.27], ['wheel-back-right', -0.43, -length * 0.27]]) {
-    scene.add(box(0.2, 0.6, 0.6, x, 0.3, z, id, mat));
+/** A pipeline-style car: nodes LOD0..LOD2 (one box each), with a paint material named like the real model's. */
+export function fakePipelineCar(paintName) {
+  const scene = new THREE.Group(), plain = new THREE.MeshStandardMaterial({ color: 0xcccccc, name: 'trim' });
+  const paint = new THREE.MeshStandardMaterial({ color: 0xffffff, name: paintName || 'trim' });
+  for (const [i, n] of [0, 1, 2].entries()) {
+    const lod = new THREE.Group();
+    lod.name = 'LOD' + i;
+    lod.add(box(1.8, 0.8, 4.7, 0, 0.7, 0, 'body', paint), box(1.6, 0.5, 2.4, 0, 1.3, -0.3, 'cabin', plain));
+    scene.add(lod);
   }
   return scene;
 }
@@ -41,18 +44,17 @@ export function fakeFerrari() {
   return scene;
 }
 
-/** A Camry stand-in: a body whose paint material has the real model's name, nose towards +z. */
-export function fakeCamry() {
-  const scene = new THREE.Group(), plain = new THREE.MeshStandardMaterial({ color: 0xcccccc });
-  const paint = new THREE.MeshPhysicalMaterial({ color: 0xffffff });
-  paint.userData.isPaint = true;
-  scene.add(box(1.8, 0.8, 4.8, 0, 0.7, 0, 'body', paint), box(1.6, 0.5, 2.4, 0, 1.3, -0.3, 'cabin', plain));
-  return scene;
-}
-
 export async function registerFakeCars() {
   const { registerCar } = await import('../../src/vehicles/carLibrary.js');
   const { CAR } = await import('../../src/config.js');
-  for (const [name, spec] of Object.entries(CAR.library.player)) registerCar(name, spec.kind === 'ferrari' ? fakeFerrari() : fakeKenney());
-  registerCar('camry', fakeCamry());
+  for (const [name, spec] of Object.entries(CAR.library.cars)) {
+    registerCar(name, spec.kind === 'ferrari' ? fakeFerrari() : spec.raw ? fakeRaw() : fakePipelineCar(spec.paint));
+  }
+}
+
+/** A raw (un-pipelined) car such as the Mustang: no LOD nodes, any size, any position. */
+export function fakeRaw() {
+  const scene = new THREE.Group(), mat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+  scene.add(box(2, 1, 9, 3, 5, 3, 'body', mat));
+  return scene;
 }

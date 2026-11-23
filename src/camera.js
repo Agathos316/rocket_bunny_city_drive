@@ -30,9 +30,9 @@ export class ChaseCamera {
     this.heading = h;
   }
 
-  /** Switch between chase and cockpit. Returns the new mode. */
+  /** Switch between chase and cockpit. Cars without a cockpit stay in the chase view. Returns the mode now in use. */
   toggle(player) {
-    this.mode = this.mode === 'chase' ? 'cockpit' : 'chase';
+    this.mode = this.mode === 'chase' && player.hasCockpit ? 'cockpit' : 'chase';
     this.heading = player.h;
     this.camera.near = this.mode === 'cockpit' ? CAMERA.cockpitNear : RENDER.near;
     this.camera.updateProjectionMatrix();
@@ -41,7 +41,7 @@ export class ChaseCamera {
   }
 
   update(dt, player) {
-    if (this.mode === 'cockpit' && player.car.eye) this.cockpit(player);
+    if (this.mode === 'cockpit' && player.car.eye && player.hasCockpit) this.cockpit(player);
     else this.chase(dt, player);
     const base = this.mode === 'cockpit' ? CAMERA.cockpitFov : RENDER.fov;
     const fov = base + clamp(player.v, 0, DRIVE.maxForward) * CAMERA.fovSpeedGain;

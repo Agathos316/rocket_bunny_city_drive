@@ -47,7 +47,10 @@ export class Game {
     this.audio = deps.audio || new AudioManager();
     this.settings = deps.settings || new SettingsPanel({
       onTraffic: (n) => this.traffic.setCount(n, this.player),
-      onCar: (model) => this.player.setModel(model),
+      onCar: (model) => {
+        this.player.setModel(model);
+        if (this.chase.mode === 'cockpit' && !this.player.hasCockpit) this.toggleCamera();   // no interior to sit in: back to the chase view
+      },
       onSound: (on) => this.audio.setEnabled(on),
       onVolume: (v) => this.audio.setVolume(v),
       doc: document,

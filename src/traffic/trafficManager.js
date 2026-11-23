@@ -36,7 +36,7 @@ export class TrafficManager {
   setCount(n, player) {
     while (this.cars.length < n) {
       const i = this.cars.length;
-      const car = makeTrafficCar(CAR.library.trafficColors[i % CAR.library.trafficColors.length]);
+      const car = makeTrafficCar(i, CAR.library.trafficColors[(i * 5) % CAR.library.trafficColors.length]);
       this.scene.add(car.root);
       this.cars.push({ car, on: false });
     }

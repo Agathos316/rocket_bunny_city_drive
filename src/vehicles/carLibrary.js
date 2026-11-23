@@ -1,105 +1,98 @@
 /**
  * The game's vehicles. Every car, whether you drive it, it drives itself in traffic, or it is parked at the
- * kerb, is a glTF model from the library in assets/models/ — nothing is built in code.
- *
- *   assets/models/ferrari.glb   Ferrari 458 Italia (three.js examples), with a modelled cockpit
- *   assets/models/kenney/*.glb  Kenney Car Kit (CC0): the sports and race cars you can drive
- *   assets/models/camry.glb     Toyota Camry 2020 (CC BY 4.0): every car in traffic and parked at the kerb
+ * kerb, is a glTF model from assets/models/ (see its README for sources and licences); nothing is built in code.
+ * The entries are listed in CAR.library.cars (config.js).
  *
  * loadCarLibrary() must finish before the game starts (main.js awaits it; tests call registerCar with stand-ins).
  *
- * makeCar(name) and makeTrafficCar(color) return { root, tilt, spin, front, wheelR, eye, setSteer }:
+ * Most models were prepared by tools/car-pipeline: nose towards +z, in metres, with three detail levels as nodes
+ * LOD0 (near), LOD1 and LOD2 (far). Traffic and parked cars use all three through THREE.LOD, so distant cars are
+ * cheap; the player's car always uses LOD0. The Ferrari is the odd one out: it has a modelled cockpit and a
+ * steering wheel that turns.
+ *
+ * makeCar(name) and makeTrafficCar(i, color) return { root, tilt, spin, front, wheelR, eye, setSteer, paint }:
  *   root  - place and rotate this          tilt  - body group (lean / pitch it for body roll)
- *   spin  - wheel groups; rotate .x        front - front wheel pivots; rotate .y to steer
- *   wheelR - wheel radius in world units   eye - driver's eye (cockpit / hood camera)   setSteer(x) - turn the steering wheel
+ *   spin / front - wheel groups to spin and steer (only the Ferrari has them)
+ *   eye - driver's eye in model units (null if the car has no cockpit)   setSteer(x) - turn the steering wheel
+ *   paint(color) - repaint the body (cars with a recolourable paint material)
  */
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
 import { CAR } from '../config.js';
 
 const library = new Map();    // name -> template scene (never modified after registration)
 const Y = new THREE.Vector3(0, 1, 0);
-
-/** One material (the kit's shared colour palette) for every Kenney car, so a whole kerb of parked cars batches. */
-let kenneyMaterial = null;
+const specOf = (name) => CAR.library.cars[name];
 
 export const hasCar = (name) => library.has(name);
 export const registerCar = (name, scene) => { library.set(name, scene); };
-export const playerNames = () => Object.keys(CAR.library.player).filter(hasCar);
+export const playerNames = () => Object.keys(CAR.library.cars).filter(hasCar);
+export const trafficNames = () => Object.keys(CAR.library.cars).filter((n) => specOf(n).traffic && hasCar(n));
+export const hasCockpit = (name) => !!specOf(name)?.cockpit;
 
-/** Load every model. Resolves to the names loaded; throws if any file is missing, since nothing can stand in for it. */
+/** Load every model. Resolves to the names loaded; rejects if any file fails, since nothing can stand in for it. */
 export async function loadCarLibrary() {
   const draco = new DRACOLoader();
   draco.setDecoderPath(CAR.library.dracoPath);
   const loader = new GLTFLoader();
   loader.setDRACOLoader(draco);
-  const jobs = [];
-  for (const [name, spec] of Object.entries(CAR.library.player)) {
-    jobs.push(loader.loadAsync(spec.url).then((gltf) => registerCar(name, spec.kind === 'ferrari' ? prepareFerrari(gltf.scene) : prepareKenney(gltf.scene))));
+  try {
+    await Promise.all(Object.entries(CAR.library.cars).map(async ([name, spec]) => {
+      const gltf = await loader.loadAsync(spec.url);
+      registerCar(name, spec.kind === 'ferrari' ? prepareFerrari(gltf.scene) : prepareCar(gltf.scene, spec));
+    }));
+  } finally {
+    draco.dispose();
   }
-  jobs.push(loader.loadAsync(CAR.library.camry.url).then((gltf) => registerCar('camry', prepareCamry(gltf.scene))));
-  try { await Promise.all(jobs); } finally { draco.dispose(); }
   return [...library.keys()];
 }
 
 /* ------------------------------------------------------------------ preparing templates */
 
+const CHROME = /chrome|rim|disc|disk|brake|mirror|exhaust/i;
+
 /**
- * The Kenney cars are chunky cartoons: tall, wide, with oversized wheels. Bring them closer to a real car's
- * proportions (and so to the Ferrari's) by narrowing and lowering the body and fitting smaller wheels that
- * sit on the ground. Runs once per template, on the model's top-level nodes (body, wheels, door, spare wheel).
+ * Tune the materials the files came with (glTF's defaults are fully metallic and fully rough, which looks black),
+ * give the body paint a clear coat, and set up shadows. Runs once per model.
  */
-function proportion(scene) {
-  const P = CAR.library.proportions, axle = 0.3 * P.wheel;     // the Kenney wheel radius is 0.3
-  for (const node of scene.children) {
-    if (/^wheel-(front|back)-(left|right)$/.test(node.name)) {
-      node.position.set(node.position.x * P.width, axle, node.position.z);   // axle at the new wheel radius, so the tyre touches the ground
-      node.scale.setScalar(P.wheel);
-    } else if (/^wheel-back$/.test(node.name)) {                              // a spare wheel on the back of an SUV: keep it round
-      node.position.set(node.position.x, node.position.y * P.height, node.position.z);
-      node.scale.setScalar(P.wheel);
+function prepareCar(scene, spec) {
+  const swapped = new Map();
+  const fix = (m) => {
+    if (swapped.has(m)) return swapped.get(m);
+    let out = m;
+    if (spec.paint && m.name === spec.paint) {
+      out = new THREE.MeshPhysicalMaterial({ color: m.color, map: m.map, metalness: 0.25, roughness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.08, envMapIntensity: 0.55 });
+      out.name = m.name;
+      out.userData.isPaint = true;
     } else {
-      node.position.set(node.position.x * P.width, node.position.y * P.height, node.position.z);
-      node.scale.set(P.width, P.height, 1);
+      if (!m.metalnessMap) m.metalness = Math.min(m.metalness, CHROME.test(m.name) ? 0.9 : 0.2);
+      if (!m.roughnessMap) m.roughness = Math.min(m.roughness, 0.6);
+      m.envMapIntensity = 0.7;
+      if (m.transparent) m.depthWrite = false;
     }
-  }
-}
-
-/** Kenney cars: one shared palette material (sRGB texture; the renderer's output is linear, which keeps the colours rich). */
-function prepareKenney(scene) {
-  proportion(scene);
+    swapped.set(m, out);
+    return out;
+  };
   scene.traverse((o) => {
     if (!o.isMesh) return;
-    if (!kenneyMaterial) {
-      kenneyMaterial = o.material;
-      kenneyMaterial.metalness = 0.1;
-      kenneyMaterial.roughness = 0.6;
-      kenneyMaterial.envMapIntensity = 0.4;
-    }
-    o.material = kenneyMaterial;
-    o.castShadow = true;
-    o.frustumCulled = false;
+    o.material = Array.isArray(o.material) ? o.material.map(fix) : fix(o.material);
+    o.castShadow = !o.material.transparent;
+    o.receiveShadow = false;
+    if (o.isSkinnedMesh) o.frustumCulled = false;
   });
+  if (spec.length) normalise(scene, spec);
   return scene;
 }
 
-/** Camry: clear-coated paint (recoloured per car) and gentler reflections on everything else. The file is in metres, nose towards +z. */
-function prepareCamry(scene) {
-  const paint = CAR.library.camry.paintMaterial;
-  scene.traverse((o) => {
-    if (!o.isMesh) return;
-    if (o.material.name === paint) {
-      o.material = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0.25, roughness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.08, envMapIntensity: 0.55 });
-      o.material.userData.isPaint = true;
-      o.geometry.computeVertexNormals();      // the file's paint panels were mesh-reduced, which leaves their normals lumpy
-    } else {
-      o.material.envMapIntensity = 0.7;
-    }
-    o.castShadow = true;
-    o.frustumCulled = false;
-  });
-  return scene;
+/** For an un-pipelined, un-skinned file with a `length` in its spec: scale to that length, centre it and stand it on the ground. */
+function normalise(scene, spec) {
+  scene.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(scene), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const k = spec.length / Math.max(size.x, size.z);
+  scene.scale.multiplyScalar(k);
+  scene.position.set(-c.x * k, -box.min.y * k, -c.z * k);
 }
 
 /** Ferrari: replace the file's flat default materials with clear-coated paint, glass, chrome, rubber. */
@@ -158,19 +151,6 @@ function rigWheels(scene, tilt, ids) {
   return { spin, front };
 }
 
-const KENNEY_WHEELS = [['wheel-front-left', true], ['wheel-front-right', true], ['wheel-back-left', false], ['wheel-back-right', false]];
-
-function buildKenney(name, scale, eye) {
-  const scene = library.get(name).clone(true);
-  const root = new THREE.Group(), tilt = new THREE.Group();
-  tilt.add(scene);
-  root.add(tilt);
-  root.scale.setScalar(scale);
-  root.updateMatrixWorld(true);
-  const { spin, front } = rigWheels(scene, tilt, KENNEY_WHEELS);
-  return { root, tilt, spin, front, wheelR: 0.3 * CAR.library.proportions.wheel * scale, eye: new THREE.Vector3(...eye), setSteer() {} };
-}
-
 function buildFerrari(spec) {
   const scene = library.get('ferrari').clone(true);
   scene.traverse((o) => {              // the paint is per car, so a colour change never touches the shared template
@@ -180,7 +160,7 @@ function buildFerrari(spec) {
     o.material.color.set(CAR.playerColor);
   });
   const root = new THREE.Group(), tilt = new THREE.Group(), model = new THREE.Group();
-  model.rotation.y = spec.rotateY;           // the model's nose is -z; the game's cars face +z
+  model.rotation.y = spec.rotateY;
   model.add(scene);
   tilt.add(model);
   root.add(tilt);
@@ -199,37 +179,63 @@ function buildFerrari(spec) {
     for (const part of [...sw.children]) if (part.name !== 'steering_column') hub.attach(part);
     setSteer = (steer) => { hub.quaternion.copy(q.setFromAxisAngle(axis, steer * CAR.steeringWheelLock)); };
   }
-  return { root, tilt, spin, front, wheelR: 0.36 * CAR.scale, eye: new THREE.Vector3(...spec.eye).applyAxisAngle(Y, spec.rotateY), setSteer };
-}
-
-/** The player's car: `name` is a key of CAR.library.player. */
-export function makeCar(name) {
-  const spec = CAR.library.player[name];
-  if (!spec || !hasCar(name)) throw new Error(`Car model "${name}" is not loaded`);
-  return spec.kind === 'ferrari' ? buildFerrari(spec) : buildKenney(name, CAR.library.kenneyScale, spec.eye);
+  return { root, tilt, spin, front, wheelR: 0.36 * CAR.scale, eye: new THREE.Vector3(...spec.eye).applyAxisAngle(Y, spec.rotateY), setSteer, paint() {} };
 }
 
 /**
- * A Camry for traffic or parking, painted `color`. The wheels are part of one merged mesh in the file, so they do not spin.
- * Materials are shared except the paint, which is the car's own.
+ * A pipeline-built or raw car. `lod` = use all three detail levels (traffic and parked cars); otherwise only the
+ * best one. `color` repaints the body if the model has a paint material (traffic cars).
  */
-export function makeTrafficCar(color) {
-  if (!hasCar('camry')) throw new Error('The Camry model is not loaded');
-  const scene = library.get('camry').clone(true);
-  scene.traverse((o) => {
-    if (!o.isMesh || !o.material.userData.isPaint) return;
+function buildCar(name, { lod, color }) {
+  const spec = specOf(name), template = library.get(name);
+  const scene = spec.raw ? SkeletonUtils.clone(template) : template.clone(true);   // skinned meshes must be cloned with their own bones
+  const owned = [];
+  scene.traverse((o) => {              // paint is per car so recolouring never touches the shared template
+    if (!o.isMesh || !o.material.userData?.isPaint) return;
     o.material = o.material.clone();
     o.material.userData.owned = true;
-    o.material.color.set(color);
+    owned.push(o.material);
   });
-  const root = new THREE.Group(), tilt = new THREE.Group();
-  tilt.add(scene);
+  const root = new THREE.Group(), tilt = new THREE.Group(), model = new THREE.Group();
+  if (spec.raw) {
+    model.rotation.y = spec.rotateY || 0;
+    model.scale.setScalar(spec.scale || 1);
+    model.add(scene);
+  } else {
+    const levels = ['LOD0', 'LOD1', 'LOD2'].map((n) => scene.getObjectByName(n));
+    if (levels[0] && lod) {
+      const group = new THREE.LOD(), [d1, d2] = CAR.library.lodDistances;
+      levels.forEach((node, i) => { if (node) { scene.remove(node); group.addLevel(node, [0, d1, d2][i]); } });
+      group.addLevel(new THREE.Object3D(), CAR.library.cullDistance);
+      model.add(group);
+    } else {
+      for (const n of levels.slice(1)) if (n) scene.remove(n);
+      model.add(scene);
+    }
+  }
+  tilt.add(model);
   root.add(tilt);
   root.scale.setScalar(CAR.scale);
-  return { root, tilt, spin: [], front: [], wheelR: 0.33 * CAR.scale, eye: new THREE.Vector3(0, 1.1, 0), setSteer() {}, paint: (c) => scene.traverse((o) => { if (o.isMesh && o.material.userData.owned) o.material.color.set(c); }) };
+  const paint = (c) => { for (const m of owned) m.color.set(c); };
+  if (color !== undefined) paint(color);
+  return { root, tilt, spin: [], front: [], wheelR: 0.33 * CAR.scale, eye: null, setSteer() {}, paint };
 }
 
-/** Free the per-car paint (the shared templates' geometry and materials stay). */
+/** The player's car: `name` is a key of CAR.library.cars. */
+export function makeCar(name) {
+  const spec = specOf(name);
+  if (!spec || !hasCar(name)) throw new Error(`Car model "${name}" is not loaded`);
+  return spec.kind === 'ferrari' ? buildFerrari(spec) : buildCar(name, { lod: false });
+}
+
+/** A traffic or parked car: model `index` of the traffic models (cycling), painted `color`, with distance detail levels. */
+export function makeTrafficCar(index, color) {
+  const names = trafficNames();
+  if (!names.length) throw new Error('No traffic car models are loaded');
+  return buildCar(names[index % names.length], { lod: true, color });
+}
+
+/** Free the per-car paint (the shared templates' geometry and other materials stay). */
 export function disposeCar(car) {
-  car.root.traverse((o) => { if (o.isMesh && o.material.userData.owned) o.material.dispose(); });
+  car.root.traverse((o) => { if (o.isMesh && o.material.userData?.owned) o.material.dispose(); });
 }

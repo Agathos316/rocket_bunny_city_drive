@@ -1,7 +1,7 @@
 /**
  * Parked cars. The city cells only record where cars are parked (ChunkManager.parked: grid position and facing);
- * the cars are drawn here, from a small pool that follows the player, because the Camry model is detailed
- * (about 21k triangles) and a whole city of them would be far too heavy. Cars appear and disappear well inside the
+ * the cars are drawn here, from a small pool that follows the player, because the models are detailed
+ * (up to ~50k triangles close up) and a whole city of them would be too heavy, even with distance detail levels. Cars appear and disappear well inside the
  * fog, so nobody sees it happen. Colours are fixed per slot, so a car looks the same each time you come back.
  */
 import { CAR, PARKED } from '../config.js';
@@ -44,7 +44,7 @@ export class ParkedManager {
       let p = this.pool.find((q) => !q.slot);
       if (!p) {
         if (this.pool.length >= PARKED.count) break;
-        p = { car: makeTrafficCar(0xffffff), slot: null };
+        p = { car: makeTrafficCar(this.pool.length, 0xffffff), slot: null };
         this.scene.add(p.car.root);
         this.pool.push(p);
       }

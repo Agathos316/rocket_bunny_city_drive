@@ -1,0 +1,11 @@
+import { NodeIO } from '@gltf-transform/core';
+import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
+import { prune, textureCompress } from '@gltf-transform/functions';
+import sharp from 'sharp';
+const [,, inp, out, size] = process.argv;
+const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
+const doc = await io.read(inp);
+const keep = new Set(['KHR_materials_clearcoat', 'KHR_texture_transform']);
+for (const ext of doc.getRoot().listExtensionsUsed()) if (!keep.has(ext.extensionName)) ext.dispose();
+await doc.transform(textureCompress({ encoder: sharp, resize: [Number(size), Number(size)] }), prune());
+await io.write(out, doc);

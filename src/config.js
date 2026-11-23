@@ -44,41 +44,40 @@ export const CAR = {
   steeringWheelLock: 1.2,        // steering-wheel rotation (rad) at full lock; the road wheels turn roadWheelLock
   roadWheelLock: 0.5,
   /**
-   * Every vehicle in the game is a glTF model from this library (nothing is built in code). See assets/models/README.md.
-   * player: the cars you can choose. `kind: 'ferrari'` has a modelled cockpit; the others get a bonnet-level camera
-   * (`eye`, in model units). camry: the model used for every car in traffic and parked at the kerb.
+   * Every vehicle in the game is a glTF model from this library (nothing is built in code); see assets/models/README.md.
+   * Each entry is a car you can drive. `traffic: true` also puts it in traffic and at the kerb. `paint` names the body-paint
+   * material, which can be recoloured (traffic cars come in several colours). `cockpit` cars have a modelled interior,
+   * so the C key switches to the driver's view; for the others C does nothing. Models built by tools/car-pipeline have
+   * three detail levels (nodes LOD0..LOD2), nose towards +z, in metres.
    */
   library: {
     dracoPath: './vendor/three/examples/jsm/libs/draco/gltf/',
-    kenneyScale: 2.5,            // Kenney Car Kit model units -> world units (the drivable Kenney cars)
-    // Kenney cars are chunky cartoons; these bring them nearer a real car's proportions (and the Ferrari's):
-    proportions: { width: 0.8, height: 0.7, wheel: 0.69 },   // body width and height factors, and wheel size factor
-    player: {
+    lodDistances: [28, 75],      // world units from the camera: level 1 beyond the first, level 2 beyond the second
+    cullDistance: 235,           // cars further than this are not drawn at all (it is all fog out there)
+    cars: {
       ferrari: {
-        label: 'Ferrari 458 Italia', kind: 'ferrari', url: './assets/models/ferrari.glb',
+        label: 'Ferrari 458 Italia', kind: 'ferrari', url: './assets/models/ferrari.glb', cockpit: true,
         rotateY: Math.PI,        // the model's nose is -z; the game's cars face +z
         steerCentre: [-0.35, 0.8, -0.35],   // steering wheel hub and column axis, in the file's own coordinates
         steerAxis: [0, 0.327, 0.945],
         eye: [-0.35, 1.0, 0.1],  // the driver's eye
       },
-      'sedan-sports': { label: 'Sports sedan', kind: 'kenney', url: './assets/models/kenney/sedan-sports.glb', eye: [0, 0.95, 0.15] },
-      'hatchback-sports': { label: 'Sports hatchback', kind: 'kenney', url: './assets/models/kenney/hatchback-sports.glb', eye: [0, 0.95, 0.15] },
-      race: { label: 'Race car', kind: 'kenney', url: './assets/models/kenney/race.glb', eye: [0, 0.85, 0.2] },
-      'race-future': { label: 'Future race car', kind: 'kenney', url: './assets/models/kenney/race-future.glb', eye: [0, 0.85, 0.2] },
+      nissan: { label: 'Nissan GT-R R35 (Liberty Walk)', url: './assets/models/cars/nissan.glb', paint: 'r35_paint' },
+      mustang: { label: 'Ford Mustang Fastback (1965)', url: './assets/models/cars/mustang.glb', raw: true, rotateY: Math.PI, scale: 0.82 },   // not from the pipeline: skinned, already in metres, nose towards -z,
+      camry: { label: 'Toyota Camry', url: './assets/models/cars/camry.glb', paint: 'Paint_Color', traffic: true },
+      tesla: { label: 'Tesla Model S', url: './assets/models/cars/tesla.glb', paint: 'primary', traffic: true },
+      audi: { label: 'Audi RS6 Avant', url: './assets/models/cars/audi.glb', paint: 'CarPrimaryColor', traffic: true },
+      bmw: { label: 'BMW M4', url: './assets/models/cars/bmw.glb', traffic: true },
+      golf: { label: 'Volkswagen Golf', url: './assets/models/cars/golf.glb', traffic: true },
     },
-    /**
-     * Toyota Camry (2020), the car in traffic and parked at the kerb. About 21k triangles, so only a few dozen are ever
-     * on screen: traffic cars, plus a pool of parked cars near the player (see traffic/parkedManager.js).
-     */
-    camry: { url: './assets/models/camry.glb', paintMaterial: 'Paint_Color' },
     trafficColors: [0xe6e6e2, 0x15161a, 0x5a5d63, 0x62081a, 0x123c8f, 0x0b2f6b, 0x6e7076, 0x1f3a2c, 0x4a1212, 0xb0aa98, 0x2a2d33, 0x8a4a1a],   // deep colours: the bright sun and tone mapping wash paint out
   },
 };
 
 /** Parked cars are drawn for the slots nearest the player only (see traffic/parkedManager.js). */
 export const PARKED = {
-  count: 28,                     // cars in the pool (each is ~21k triangles)
-  radius: 150,                   // only slots within this many units of the player (grid units)
+  count: 48,                     // cars in the pool (far ones are drawn with very few triangles)
+  radius: 200,                   // only slots within this many units of the player (grid units)
   refreshSeconds: 0.25,
 };
 

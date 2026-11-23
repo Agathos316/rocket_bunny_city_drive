@@ -30,7 +30,7 @@ Pages URL. Any static file server works too.
 | C | Switch camera: chase view / cockpit view (the driver's eye, behind the steering wheel) |
 | ⚙ (bottom left) | Settings: choose your car, set the amount of traffic, sound on/off and volume |
 
-Cars: every vehicle in the game is a 3D model loaded from `assets/models/` (nothing is built in code). You choose between a Ferrari 458 Italia (with a modelled cockpit whose steering wheel turns), a sports sedan, a sports hatchback, a race car and a future race car (the last four from the CC0 Kenney Car Kit). Every car in traffic and parked at the kerb is a detailed Toyota Camry (CC BY 4.0, see `assets/models/README.md`) in a range of colours. It is about 21k triangles, so parked cars are drawn only for the slots nearest you (a pool of 28, `src/traffic/parkedManager.js`). **C** switches between the chase view and the driver's view: the Ferrari's cockpit, or a bonnet-level view for the other cars.
+Cars: every vehicle in the game is a 3D model loaded from `assets/models/` (nothing is built in code; sources and licences are in that folder's README). You choose between a Ferrari 458 Italia (with a modelled cockpit whose steering wheel turns), a Nissan GT-R R35 Liberty Walk, a 1965 Ford Mustang Fastback, a Toyota Camry, a Tesla Model S, an Audi RS6 Avant, a BMW M4 and a Volkswagen Golf. Traffic and the kerbside parked cars are a mix of the Camry, Tesla, Audi, BMW and Golf in different colours. **C** switches between the chase view and the driver's view, which is available in the Ferrari only (the others stay in the chase view). Cars are drawn at three levels of detail by distance, so distant cars cost very little, and parked cars are drawn for the slots nearest you (a pool of 48, `src/traffic/parkedManager.js`).
 
 ## Sound
 
@@ -75,15 +75,16 @@ src/
   assets.js             materials and procedural textures
   audio.js              AudioManager: procedural engine, road, ambience and impact sounds
   collisions.js         blocks, bumps, parked cars, traffic
-  vehicles/             the car library (loads and builds every vehicle from glTF files), player car + physics
+  vehicles/             the car library (loads and builds every vehicle from glTF files, with distance detail levels), player car + physics
   traffic/              TrafficManager: lanes, turns, following, traffic lights, recycling
   world/                zones (pure world-shape functions), cell generators, trees, chunk streaming, signals
   ui/                   HUD and settings panel
   util/                 seeded RNG, maths, geometry Batcher
 tests/                  Node tests (zones, whole-game integration) + browser smoke test
 tools/serve.mjs         tiny static server used by `npm start` and the browser test
-vendor/three/           three.js r128 (ES module build, BufferGeometryUtils, GLTFLoader, DRACOLoader + decoder), MIT licensed
+vendor/three/           three.js r128 (ES module build, BufferGeometryUtils, GLTFLoader, DRACOLoader + decoder, SkeletonUtils), MIT licensed
 assets/models/         the glTF car library (see its README for sources and licences)
+tools/car-pipeline/    offline scripts that turned big car models into the game-ready files
 ```
 
 ## How it works
@@ -118,7 +119,7 @@ npm test             # Node's built-in runner, no dependencies, ~15 s
 npm run test:browser # Playwright + headless Chromium smoke test (see below)
 ```
 
-`npm test` runs 62 tests:
+`npm test` runs 64 tests:
 
 - the pure world functions (zones, rivers, stations, heights, the warp and its inverse, terrain carved below roads);
 - the whole `Game` headless against a stub DOM and a fake renderer: boot, acceleration and money, up+left combining,
