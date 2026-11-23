@@ -397,6 +397,9 @@ const pick = (game, name) => {            // choose a car the way a player does:
 test('camera: cars without a cockpit stay in the chase view, and switching to one leaves the cockpit view', () => {
   const { game } = makeGame({ traffic: 0 });
   key(game, 'KeyC');
+  assert.equal(game.chase.mode, 'chase', 'the default Nissan has no cockpit');
+  pick(game, 'ferrari');
+  key(game, 'KeyC');
   assert.equal(game.chase.mode, 'cockpit', 'the Ferrari has a cockpit');
   pick(game, 'camry');
   assert.equal(game.player.model, 'camry');
@@ -431,23 +434,24 @@ test('car selector: Space opens it, arrows cycle the carousel, Space chooses, Es
   key(game, 'Space');
   assert.equal(game.selector.isOpen, true);
   assert.equal(game.garage.calls[0][0], 'show');
-  assert.equal(game.garage.calls[0][1], 'ferrari', 'starts on the current car');
+  assert.equal(game.garage.calls[0][1], CAR.defaultModel, 'starts on the current car');
   assert.equal(audio.paused, true, 'sound is paused');
   run(game, 1);
   assert.equal(game.player.x, x0); assert.equal(game.player.z, z0, 'the game is frozen while the selector is open');
 
+  const here = names.indexOf(CAR.defaultModel), at = (k) => names[(here + k + names.length) % names.length];
   key(game, 'ArrowRight');
-  assert.equal(game.selector.current, names[1]);
+  assert.equal(game.selector.current, at(1));
   key(game, 'ArrowLeft'); key(game, 'ArrowLeft');
-  assert.equal(game.selector.current, names.at(-1), 'wraps round to the last car');
-  assert.deepEqual(game.garage.calls.at(-1).slice(0, 2), ['showCar', names.at(-1)]);
+  assert.equal(game.selector.current, at(-1), 'wraps round');
+  assert.deepEqual(game.garage.calls.at(-1).slice(0, 2), ['showCar', at(-1)]);
   key(game, 'ArrowRight');
   key(game, 'KeyC');
   assert.equal(game.chase.mode, 'chase', 'C does nothing while choosing');
 
   key(game, 'Escape');
   assert.equal(game.selector.isOpen, false);
-  assert.equal(game.player.model, 'ferrari', 'Esc keeps the current car');
+  assert.equal(game.player.model, CAR.defaultModel, 'Esc keeps the current car');
   assert.equal(audio.paused, false);
   assert.equal(game.player.car.root, before);
 
@@ -457,12 +461,12 @@ test('car selector: Space opens it, arrows cycle the carousel, Space chooses, Es
   assert.equal(game.selector.isOpen, true);
   key(game, 'Space');
   assert.equal(game.selector.isOpen, false);
-  assert.equal(game.player.model, names[1], 'the car on show is chosen');
+  assert.equal(game.player.model, game.selector.current, 'the car on show is chosen');
   assert.notEqual(game.player.car.root, before);
   assert.equal(game.scene.children.includes(before), false);
   assert.equal(game.scene.children.includes(game.player.car.root), true);
-  assert.equal(dom.elements.get('carname').textContent, CAR.library.cars[names[1]].label, 'the settings panel names the car');
-  assert.equal(audio.voice, names[1], 'the engine voice follows');
+  assert.equal(dom.elements.get('carname').textContent, CAR.library.cars[game.selector.current].label, 'the settings panel names the car');
+  assert.equal(audio.voice, game.selector.current, 'the engine voice follows');
   run(game, 0.3);
   assert.ok(game.player.x !== x0 || game.player.z !== z0, 'driving resumes');
 });
@@ -491,6 +495,7 @@ test('camera: stays above and behind the car', () => {
 
 test('camera: C switches to the cockpit view (the driver\'s eye, facing forward) and back', () => {
   const { game, input } = makeGame({ traffic: 0 });
+  pick(game, 'ferrari');
   input.value.throttle = 1;
   run(game, 1);
   const p = game.player;

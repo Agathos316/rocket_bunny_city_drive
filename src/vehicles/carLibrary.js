@@ -65,7 +65,7 @@ function prepareCar(scene, spec) {
     if (swapped.has(m)) return swapped.get(m);
     let out = m;
     if (spec.paint && m.name === spec.paint) {
-      out = new THREE.MeshPhysicalMaterial({ color: m.color, map: m.map, metalness: 0.25, roughness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.08, envMapIntensity: 0.55 });
+      out = new THREE.MeshPhysicalMaterial({ color: m.color, map: m.map, metalness: 0.6, roughness: 0.26, clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 1.1 });
       out.name = m.name;
       out.userData.isPaint = true;
     } else if (/glass|window/i.test(m.name) && !m.map) {          // some files ship windows as opaque white: make them dark, shiny and see-through
@@ -79,7 +79,7 @@ function prepareCar(scene, spec) {
     } else {
       if (!m.metalnessMap) m.metalness = Math.min(m.metalness, CHROME.test(m.name) ? 0.9 : 0.2);
       if (!m.roughnessMap) m.roughness = Math.min(m.roughness, 0.6);
-      m.envMapIntensity = 0.7;
+      m.envMapIntensity = 0.9;
       if (m.transparent) m.depthWrite = false;
     }
     swapped.set(m, out);
@@ -112,7 +112,7 @@ function prepareFerrari(scene) {
   const make = (m) => {
     const n = m.name;
     if (n === 'Body_Color') {
-      const paint = new THREE.MeshPhysicalMaterial({ color: CAR.playerColor, metalness: 0.55, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 1.25 });
+      const paint = new THREE.MeshPhysicalMaterial({ color: CAR.playerColor, metalness: 0.65, roughness: 0.24, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.1 });
       paint.userData.isPaint = true;
       return paint;
     }

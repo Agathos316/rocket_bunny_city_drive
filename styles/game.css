@@ -35,3 +35,6 @@ canvas{display:block}
 #garage-prev,#garage-next{position:absolute;top:50%;transform:translateY(-50%);width:56px;height:80px;border:0;border-radius:12px;background:rgba(14,18,26,.5);color:#fff;font-size:44px;line-height:1;cursor:pointer}
 #garage-prev{left:max(16px,env(safe-area-inset-left))}
 #garage-next{right:max(16px,env(safe-area-inset-right))}
+#garage-pip{position:absolute;right:max(16px,env(safe-area-inset-right));bottom:calc(max(22px,env(safe-area-inset-bottom)) + 34px);width:min(30vw,300px);aspect-ratio:16/10;border:2px solid rgba(255,255,255,.75);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.55);pointer-events:none;overflow:hidden}
+#garage-pip[hidden]{display:none}
+#garage-pip span{position:absolute;left:0;right:0;bottom:0;padding:3px 8px;font-size:11px;letter-spacing:.5px;text-transform:uppercase;background:rgba(14,18,26,.6)}
