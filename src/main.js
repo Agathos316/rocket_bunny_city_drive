@@ -15,12 +15,21 @@ function showFatal(error) {
   box.append(title, hint, detail);
 }
 
+const hideLoading = () => {
+  const el = document.getElementById('loading');
+  if (!el) return;
+  el.classList.add('done');
+  setTimeout(() => el.remove(), 700);
+};
+
 try {
   await loadCarLibrary();   // every vehicle is a model file, so the game cannot start until they have loaded
   const game = new Game({ parent: document.body });
   game.start();
   window.rocketBunny = { game };   // handy for debugging in the console
+  hideLoading();
 } catch (error) {
   console.error(error);
+  document.getElementById('loading')?.remove();
   showFatal(error);
 }
