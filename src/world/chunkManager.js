@@ -39,6 +39,12 @@ export class ChunkManager {
     for (let n = 0; n < Math.min(budget, missing.length); n++) this._build(missing[n][1], missing[n][2]);
   }
 
+  /** Throw every cell away and build the neighbourhood of (gx, gz) again (used when new car models arrive). */
+  rebuildAll(gx, gz) {
+    for (const [key, cell] of this.cells) this._remove(key, cell);
+    this.update(gx, gz, Infinity);
+  }
+
   _build(i, j) {
     const built = isHwy(i, j) ? generateHighway(i, j) : generateCity(i, j, { signals: this.signals });
     warpGroup(built.group);

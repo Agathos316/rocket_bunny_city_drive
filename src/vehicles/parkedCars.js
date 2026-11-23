@@ -1,5 +1,6 @@
 /**
- * Parked cars: a cheap version of each model with its colour baked into vertex colours, so a whole
+ * Parked cars: ordinary cars from the glTF kit once it has loaded; until then (and as a fallback) a cheap version of
+ * each sports-car model with its colour baked into vertex colours, so a whole
  * kerb of them merges into the city cell's mesh. Geometry for each model is built once and reused.
  */
 import * as THREE from 'three';
@@ -8,6 +9,7 @@ import { CAR } from '../config.js';
 import { getAssets } from '../assets.js';
 import { getGeoms } from '../world/geometries.js';
 import { getCarGeometry } from './carModels.js';
+import { getParkedGeometry, parkedMaterial, parkedNames } from './gltfCar.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const cache = {};
@@ -59,6 +61,13 @@ function parkedGeometry(name) {
 
 /** Add a parked car of the given model and colour to a Batcher, at grid position (x, z) facing `ry`. */
 export function putParkedCar(batcher, name, color, x, z, ry) {
+  const names = parkedNames();
+  if (names.length) {                                   // ordinary cars from the Kenney kit, picked by position so a kerb has a mix
+    const pick = names[Math.abs(Math.floor(x * 7 + z * 13)) % names.length];
+    const m = new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), new THREE.Vector3(1, 1, 1));
+    batcher.add(parkedMaterial(), getParkedGeometry(pick).clone().applyMatrix4(m));
+    return;
+  }
   const pg = parkedGeometry(name);
   const m = new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), new THREE.Vector3(1, 1, 1));
   const tint = new THREE.Color(color);

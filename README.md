@@ -30,7 +30,7 @@ Pages URL. Any static file server works too.
 | C | Switch camera: chase view / cockpit view (the driver's eye, behind the steering wheel) |
 | ⚙ (bottom left) | Settings: choose your car, set the amount of traffic, sound on/off and volume |
 
-Cars: a Ferrari 458 Italia (a real 3D model with a modelled cockpit; the default once it has loaded), plus the built-in Toyota Supra, Ford Mustang, Porsche 911, Nissan GT-R and Honda Civic Type R with the Rocket Bunny kit. Traffic uses ordinary cars (sedan, SUV, taxi, van, delivery truck, police car from the CC0 Kenney Car Kit). In the cockpit view the steering wheel turns with your steering. The cockpit is fully modelled only for the Ferrari; the built-in cars just get a simple wheel and no interior.
+Cars: a Ferrari 458 Italia (a real 3D model with a modelled cockpit; the default once it has loaded), plus the built-in Toyota Supra, Ford Mustang, Porsche 911, Nissan GT-R and Honda Civic Type R with the Rocket Bunny kit. Traffic and kerbside parked cars use ordinary cars (sedan, SUV, taxi, van, delivery truck, police car from the CC0 Kenney Car Kit). In the cockpit view the steering wheel turns with your steering. The cockpit is fully modelled only for the Ferrari; the built-in cars just get a simple wheel and no interior.
 
 ## Sound
 

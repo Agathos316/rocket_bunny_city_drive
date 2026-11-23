@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { BufferGeometryUtils } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CAR } from '../config.js';
 
 const loaded = new Map();   // model name -> gltf.scene (shared template; each build clones it)
@@ -132,6 +133,7 @@ export function disposeGltfCar(car) {
 /* ------------------------------------------------------------------ traffic cars */
 
 const traffic = new Map();   // name -> template scene (Kenney Car Kit: sedan, SUV, taxi, van, ...)
+let trafficMaterial = null;  // one material (the kit's shared colour palette) for every traffic and parked car, so they batch
 
 export const loadedTrafficNames = () => CAR.trafficGlb.names.filter((n) => traffic.has(n));
 
@@ -143,11 +145,13 @@ export async function loadTrafficCars(onLoaded) {
       const gltf = await loader.loadAsync(CAR.trafficGlb.dir + name + '.glb');
       gltf.scene.traverse((o) => {
         if (!o.isMesh) return;
-        o.material.map.encoding = THREE.LinearEncoding;       // the game does no colour management, so the palette is used as drawn
-        o.material.map.needsUpdate = true;
-        o.material.metalness = 0.1;
-        o.material.roughness = 0.6;
-        o.material.envMapIntensity = 0.5;
+        if (!trafficMaterial) {
+          trafficMaterial = o.material;                       // the palette texture is sRGB; the renderer's output is linear, so colours come out rich
+          trafficMaterial.metalness = 0.15;
+          trafficMaterial.roughness = 0.55;
+          trafficMaterial.envMapIntensity = 0.45;
+        }
+        o.material = trafficMaterial;
         o.castShadow = true;
         o.frustumCulled = false;
       });
@@ -182,4 +186,33 @@ export function buildTrafficCar(index) {
     spin.push(sp);
   }
   return { root, tilt, spin, front: [] };
+}
+
+const parkedGeo = new Map();
+export const parkedMaterial = () => trafficMaterial;
+export const parkedNames = () => loadedTrafficNames().filter((n) => !/delivery|police/.test(n));   // delivery trucks are too long for a bay
+
+/**
+ * One merged geometry for a parked car of the given model: body and wheels with their node transforms baked in,
+ * scaled to world units, nose towards +z. Indexed, with position, normal and uv only, so it batches into a cell.
+ */
+export function getParkedGeometry(name, scale = 2.3) {
+  const key = name + scale;
+  if (parkedGeo.has(key)) return parkedGeo.get(key);
+  const scene = traffic.get(name);
+  scene.updateMatrixWorld(true);
+  const parts = [];
+  scene.traverse((o) => {
+    if (!o.isMesh) return;
+    const g = new THREE.BufferGeometry();
+    for (const a of ['position', 'normal', 'uv']) g.setAttribute(a, o.geometry.attributes[a].clone());
+    g.setIndex(o.geometry.index.clone());
+    g.applyMatrix4(o.matrixWorld);
+    g.scale(scale, scale, scale);
+    parts.push(g);
+  });
+  const merged = BufferGeometryUtils.mergeBufferGeometries(parts);
+  parts.forEach((g) => g.dispose());
+  parkedGeo.set(key, merged);
+  return merged;
 }

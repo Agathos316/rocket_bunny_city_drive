@@ -75,7 +75,13 @@ export class Game {
     this.models = deps.loadModels === undefined ? loadGltfCars : deps.loadModels;   // glTF cars load in the background
     this.modelsReady = this.models ? this.models((name) => this.onModelLoaded(name)).catch(() => []) : Promise.resolve([]);
     this.trafficModels = deps.loadTrafficModels === undefined ? loadTrafficCars : deps.loadTrafficModels;
-    if (this.trafficModels) this.trafficModels().then(() => this.traffic.upgradeCars()).catch(() => {});
+    if (this.trafficModels) {
+      this.trafficModels().then((names) => {
+        if (!names.length) return;
+        this.traffic.upgradeCars();
+        this.chunks.rebuildAll(this.player.gx, this.player.gz);   // parked cars are baked into the cells, so rebuild them
+      }).catch(() => {});
+    }
   }
 
   /** A glTF car finished loading: offer it in the settings, and make it the player's car unless they already chose one. */
