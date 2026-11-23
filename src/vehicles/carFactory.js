@@ -149,7 +149,7 @@ export function makeCar(color, detail, modelName = CAR.defaultModel) {
   wheelMesh.userData.ownsGeometry = true;
   wheelHub.add(wheelMesh);
   tilt.add(wheelHub);
-  const setSteer = (steer) => { wheelHub.rotation.z = -steer * 1.9; };
+  const setSteer = (steer) => { wheelHub.rotation.z = -steer * CAR.steeringWheelLock; };
   const eye = new THREE.Vector3(.36, 1.12, D.bz - .12);
   return { root, tilt, spin, front, eye, setSteer };
 }

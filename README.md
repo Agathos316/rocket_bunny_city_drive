@@ -30,7 +30,7 @@ Pages URL. Any static file server works too.
 | C | Switch camera: chase view / cockpit view (the driver's eye, behind the steering wheel) |
 | ⚙ (bottom left) | Settings: choose your car, set the amount of traffic, sound on/off and volume |
 
-Cars: a Ferrari 458 Italia (a real 3D model with a modelled cockpit; the default once it has loaded), plus the built-in Toyota Supra, Ford Mustang, Porsche 911, Nissan GT-R and Honda Civic Type R with the Rocket Bunny kit. In the cockpit view the steering wheel turns with your steering. The cockpit is fully modelled only for the Ferrari; the built-in cars just get a simple wheel and no interior.
+Cars: a Ferrari 458 Italia (a real 3D model with a modelled cockpit; the default once it has loaded), plus the built-in Toyota Supra, Ford Mustang, Porsche 911, Nissan GT-R and Honda Civic Type R with the Rocket Bunny kit. Traffic uses ordinary cars (sedan, SUV, taxi, van, delivery truck, police car from the CC0 Kenney Car Kit). In the cockpit view the steering wheel turns with your steering. The cockpit is fully modelled only for the Ferrari; the built-in cars just get a simple wheel and no interior.
 
 ## Sound
 
@@ -75,9 +75,9 @@ src/
   assets.js             materials and procedural textures
   audio.js              AudioManager: procedural engine, road, ambience and impact sounds
   collisions.js         blocks, bumps, parked cars, traffic
-  vehicles/             car models (lofted shells), glTF cars (Ferrari), car factory, player car + physics, parked cars
+  vehicles/             car models (lofted shells), glTF cars (Ferrari, traffic cars), car factory, player car + physics, parked cars
   traffic/              TrafficManager: lanes, turns, following, traffic lights, recycling
-  world/                zones (pure world-shape functions), cell generators, chunk streaming, signals
+  world/                zones (pure world-shape functions), cell generators, trees, chunk streaming, signals
   ui/                   HUD and settings panel
   util/                 seeded RNG, maths, geometry Batcher
 tests/                  Node tests (zones, whole-game integration) + browser smoke test

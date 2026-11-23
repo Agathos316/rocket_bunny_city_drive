@@ -128,3 +128,58 @@ export function buildGltfCar(name, color) {
 export function disposeGltfCar(car) {
   car.root.traverse((o) => { if (o.isMesh && o.material.userData.owned) o.material.dispose(); });
 }
+
+/* ------------------------------------------------------------------ traffic cars */
+
+const traffic = new Map();   // name -> template scene (Kenney Car Kit: sedan, SUV, taxi, van, ...)
+
+export const loadedTrafficNames = () => CAR.trafficGlb.names.filter((n) => traffic.has(n));
+
+/** Load the ordinary-car models used for traffic. Failures are reported and skipped. */
+export async function loadTrafficCars(onLoaded) {
+  const loader = new GLTFLoader();
+  await Promise.all(CAR.trafficGlb.names.map(async (name) => {
+    try {
+      const gltf = await loader.loadAsync(CAR.trafficGlb.dir + name + '.glb');
+      gltf.scene.traverse((o) => {
+        if (!o.isMesh) return;
+        o.material.map.encoding = THREE.LinearEncoding;       // the game does no colour management, so the palette is used as drawn
+        o.material.map.needsUpdate = true;
+        o.material.metalness = 0.1;
+        o.material.roughness = 0.6;
+        o.material.envMapIntensity = 0.5;
+        o.castShadow = true;
+        o.frustumCulled = false;
+      });
+      traffic.set(name, gltf.scene);
+      onLoaded?.(name);
+    } catch (error) {
+      console.warn(`Could not load the ${name} traffic model; using the built-in cars instead.`, error);
+    }
+  }));
+  return loadedTrafficNames();
+}
+
+/** A traffic car from the loaded models (picked by `index`, so a mix of body styles). Same shape as makeCar(), without a cockpit. */
+export function buildTrafficCar(index) {
+  const names = loadedTrafficNames();
+  const scene = traffic.get(names[index % names.length]).clone(true);
+  const root = new THREE.Group(), tilt = new THREE.Group();
+  tilt.add(scene);
+  root.add(tilt);
+  root.scale.setScalar(CAR.trafficGlb.scale);
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3(), c = new THREE.Vector3(), spin = [];
+  for (const id of ['wheel-front-left', 'wheel-front-right', 'wheel-back-left', 'wheel-back-right']) {
+    const node = scene.getObjectByName(id);
+    if (!node) continue;
+    box.setFromObject(node).getCenter(c);
+    const sp = new THREE.Group();
+    sp.position.copy(tilt.worldToLocal(c.clone()));
+    tilt.add(sp);
+    tilt.updateMatrixWorld(true);
+    sp.attach(node);
+    spin.push(sp);
+  }
+  return { root, tilt, spin, front: [] };
+}

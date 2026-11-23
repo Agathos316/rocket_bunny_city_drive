@@ -46,12 +46,20 @@ export const CAR = {
   trafficColors: [0x1e5fd6, 0xc8102e, 0x0b4ea2, 0xf4f4f2, 0x7d8087, 0xf7c600, 0x6cc4e8, 0xb30f1d, 0x1a1b1e, 0x2f7a48, 0xff7a00],
   parkedColors: [0x1e88ff, 0xe5173f, 0x7ad100, 0xf2f2f2, 0x8e3bff, 0xffd000, 0x00c2b0, 0xff4fa0, 0x2a2a2a, 0xff6a00],
   blackRoofChance: 0.4,
+  steeringWheelLock: 1.2,        // steering-wheel rotation (rad) at full lock; the road wheels turn roadWheelLock
+  roadWheelLock: 0.5,
   preferredModel: 'ferrari',     // the player's car once its glTF model has loaded (falls back to defaultModel)
   dracoPath: './vendor/three/examples/jsm/libs/draco/gltf/',
   /**
    * Cars loaded from glTF/GLB files. Coordinates are in the file's own units (metres); rotateY turns the model so its
    * nose points +z; steerCentre/steerAxis place and aim the steering wheel; eye is the driver's eye (cockpit camera).
    */
+  /** Ordinary traffic cars (Kenney Car Kit, CC0), used for traffic in place of the sports-car shapes once loaded. */
+  trafficGlb: {
+    dir: './assets/models/traffic/',
+    names: ['sedan', 'suv', 'taxi', 'van', 'suv-luxury', 'delivery', 'police'],
+    scale: 2.5,                  // model units -> world units
+  },
   glbModels: {
     ferrari: {
       label: 'Ferrari 458 Italia',
@@ -60,7 +68,7 @@ export const CAR = {
       scale: 1,
       steerCentre: [-0.35, 0.8, -0.35],
       steerAxis: [0, 0.327, 0.945],
-      steerLock: 1.9,            // radians of wheel rotation at full lock
+      steerLock: 1.2,            // radians of steering-wheel rotation at full lock
       eye: [-0.35, 1.0, 0.1],
     },
   },          // share of traffic cars with a black roof
@@ -77,9 +85,9 @@ export const DRIVE = {
   coastBase: 2.5,                // engine braking when no pedal is pressed
   coastPerSpeed: 0.2,
   steerSmoothing: 7,             // how quickly the wheel follows the key
-  steerRate: 2.6,                // yaw rate at full lock
+  steerRate: 3.6,                // yaw rate at full lock
   steerSpeedFloor: 5,            // below this speed the car barely turns
-  steerSpeedFalloff: 20,         // above this speed steering is progressively reduced
+  steerSpeedFalloff: 24,         // above this speed steering is progressively reduced
   accelSmoothing: 6,             // pitch response
   gravity: 30,
   moneyPerMetre: 0.2,

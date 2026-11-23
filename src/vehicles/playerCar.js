@@ -107,7 +107,7 @@ export class PlayerCar {
     tilt.rotation.x = -this.acc * 0.0013 + clamp(this.vy, -4, 4) * -0.01 - Math.atan(this.sl);
     const spinStep = this.v * dt / (CAR.wheelRadius * CAR.scale);
     for (const w of spin) w.rotation.x += spinStep;
-    for (const f of front) f.rotation.y = this.steer * 0.45;
+    for (const f of front) f.rotation.y = this.steer * CAR.roadWheelLock;
     this.car.setSteer?.(this.steer);
   }
 }

@@ -20,7 +20,7 @@ import { TrafficManager } from './traffic/trafficManager.js';
 import { Hud } from './ui/hud.js';
 import { SettingsPanel } from './ui/settingsPanel.js';
 import { AudioManager } from './audio.js';
-import { hasGltfCar, loadGltfCars } from './vehicles/gltfCar.js';
+import { hasGltfCar, loadGltfCars, loadTrafficCars } from './vehicles/gltfCar.js';
 
 export class Game {
   /**
@@ -74,6 +74,8 @@ export class Game {
     this.userPickedCar = false;
     this.models = deps.loadModels === undefined ? loadGltfCars : deps.loadModels;   // glTF cars load in the background
     this.modelsReady = this.models ? this.models((name) => this.onModelLoaded(name)).catch(() => []) : Promise.resolve([]);
+    this.trafficModels = deps.loadTrafficModels === undefined ? loadTrafficCars : deps.loadTrafficModels;
+    if (this.trafficModels) this.trafficModels().then(() => this.traffic.upgradeCars()).catch(() => {});
   }
 
   /** A glTF car finished loading: offer it in the settings, and make it the player's car unless they already chose one. */

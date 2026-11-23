@@ -29,7 +29,7 @@ function makeGame({ traffic } = {}) {
   dom.elements.clear();   // fresh UI elements, so listeners from earlier games in this file cannot fire
   const input = fakeInput();
   const audio = recordingAudio();
-  const game = new Game({ renderer: fakeRenderer(), input, audio, makeReflection: () => null, loadModels: null });
+  const game = new Game({ renderer: fakeRenderer(), input, audio, makeReflection: () => null, loadModels: null, loadTrafficModels: null });
   if (traffic !== undefined) game.traffic.setCount(traffic, game.player);
   return { game, input, audio };
 }

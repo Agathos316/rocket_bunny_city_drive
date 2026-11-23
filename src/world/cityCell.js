@@ -16,6 +16,7 @@ import { getGeoms } from './geometries.js';
 import { Hr, bridgeY, isHwy, isRiver, isStn, roadAt, roadStyle } from './zones.js';
 import { ribbon } from './surfaces.js';
 import { buildStation } from './station.js';
+import { getTrees } from './trees.js';
 import { putParkedCar } from '../vehicles/parkedCars.js';
 
 export function generateCity(i, j, { signals }) {
@@ -158,9 +159,9 @@ export function generateCity(i, j, { signals }) {
   for (let n = 0; n < (river ? 0 : 8); n++) {
     const side = rand() * 4 | 0, off = (rand() - 0.5) * 60, inset = C / 2 - RD - PK - 0.7;
     const tx = cx + (side < 2 ? (side ? inset : -inset) : off), tz = cz + (side < 2 ? off : (side === 2 ? inset : -inset));
-    const trunk = 2.2 + rand() * 1.2, crown = 1.4 + rand() * 0.8;
-    put(G.cyl, mats.trunk, tx, 0.3 + trunk / 2, tz, 0.22, trunk, 0.22);
-    put(G.leaf, mats.leaves[rand() * 3 | 0], tx, 0.3 + trunk + crown * 0.6, tz, crown, crown * 1.15, crown);
+    const trunk = 2.2 + rand() * 1.2, crown = 1.4 + rand() * 0.8, pick = rand() * 3 | 0;
+    const trees = getTrees(), geo = pick === 2 && n % 4 === 0 ? trees.conifer[n & 1] : trees.broadleaf[(n + pick) % 4];
+    put(geo, mats.tree, tx, 0.3, tz, crown * 0.52 + trunk * 0.1, crown * 0.52 + trunk * 0.1, crown * 0.52 + trunk * 0.1, n * 2.4 + tx);   // (no extra rand() call: the order below must not change)
   }
 
   batch.build(group, owned, castsShadow);

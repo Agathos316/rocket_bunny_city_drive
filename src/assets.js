@@ -77,6 +77,7 @@ function buildAssets() {
   }));
   const roof = lambert(0x7a7e84);
   const trunk = lambert(0x5a4030);
+  const tree = lambert(0xffffff, { vertexColors: true });   // vertex-coloured tree geometry (world/trees.js)
   const leaves = [0x3f7a35, 0x4e8f3a, 0x2f6a30].map((c) => lambert(c));
   const concrete = lambert(0xa5a7aa, { side: THREE.DoubleSide, emissive: 0x34363a });
   const canopy = lambert(0xd0242b);
@@ -85,7 +86,7 @@ function buildAssets() {
   });
 
   const mats = {
-    buildings, roof, trunk, leaves, concrete, canopy, parkedPaint,
+    buildings, roof, trunk, leaves, tree, concrete, canopy, parkedPaint,
     footpath: lambert(0xc2beb4),
     ground: lambert(0xffffff, { map: asphalt }),
     highway: lambert(0x111214),
@@ -124,7 +125,7 @@ function buildAssets() {
   };
 
   /* Materials whose meshes cast shadows (flat ground detail does not). */
-  const castsShadow = new Set([roof, trunk, ...leaves, ...buildings, concrete, canopy, parkedPaint]);
+  const castsShadow = new Set([roof, trunk, tree, ...leaves, ...buildings, concrete, canopy, parkedPaint]);
 
   return { mats, car, castsShadow, textures: { asphalt } };
 }

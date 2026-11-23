@@ -12,6 +12,7 @@ import { getAssets } from '../assets.js';
 import { getGeoms } from './geometries.js';
 import { Fe, Gh, Hr, dzf, isDesert, roadAt } from './zones.js';
 import { ribbon, terrainGeometry } from './surfaces.js';
+import { getTrees } from './trees.js';
 
 export function generateHighway(i, j) {
   const { mats, castsShadow } = getAssets();
@@ -81,8 +82,8 @@ export function generateHighway(i, j) {
         put(G.leaf, mats.rock, x, y + s * 0.3, z, s * 1.4, s * 0.7, s);
       }
     } else {
-      put(G.cyl, mats.trunk, x, y + hh / 2, z, 0.3, hh, 0.3);
-      put(G.leaf, mats.leaves[rand() * 3 | 0], x, y + hh + s * 0.6, z, s, s * 1.3, s);
+      const pick = rand() * 3 | 0, trees = getTrees(), k = s * 0.58 + hh * 0.08;
+      put(pick === 2 ? trees.conifer[n & 1] : trees.broadleaf[(n + pick) % 4], mats.tree, x, y - 0.1, z, k, k * (0.9 + hh * 0.1), k, n * 2.1);
     }
   }
 
