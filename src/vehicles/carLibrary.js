@@ -50,8 +50,30 @@ export async function loadCarLibrary() {
 
 /* ------------------------------------------------------------------ preparing templates */
 
+/**
+ * The Kenney cars are chunky cartoons: tall, wide, with oversized wheels. Bring them closer to a real car's
+ * proportions (and so to the Ferrari's) by narrowing and lowering the body and fitting smaller wheels that
+ * sit on the ground. Runs once per template, on the model's top-level nodes (body, wheels, door, spare wheel).
+ */
+function proportion(scene) {
+  const P = CAR.library.proportions, axle = 0.3 * P.wheel;     // the Kenney wheel radius is 0.3
+  for (const node of scene.children) {
+    if (/^wheel-(front|back)-(left|right)$/.test(node.name)) {
+      node.position.set(node.position.x * P.width, axle, node.position.z);   // axle at the new wheel radius, so the tyre touches the ground
+      node.scale.setScalar(P.wheel);
+    } else if (/^wheel-back$/.test(node.name)) {                              // a spare wheel on the back of an SUV: keep it round
+      node.position.set(node.position.x, node.position.y * P.height, node.position.z);
+      node.scale.setScalar(P.wheel);
+    } else {
+      node.position.set(node.position.x * P.width, node.position.y * P.height, node.position.z);
+      node.scale.set(P.width, P.height, 1);
+    }
+  }
+}
+
 /** Kenney cars: one shared palette material (sRGB texture; the renderer's output is linear, which keeps the colours rich). */
 function prepareKenney(scene) {
+  proportion(scene);
   scene.traverse((o) => {
     if (!o.isMesh) return;
     if (!kenneyMaterial) {
@@ -133,7 +155,7 @@ function buildKenney(name, scale, eye) {
   root.scale.setScalar(scale);
   root.updateMatrixWorld(true);
   const { spin, front } = rigWheels(scene, tilt, KENNEY_WHEELS);
-  return { root, tilt, spin, front, wheelR: 0.3 * scale, eye: new THREE.Vector3(...eye), setSteer() {} };
+  return { root, tilt, spin, front, wheelR: 0.3 * CAR.library.proportions.wheel * scale, eye: new THREE.Vector3(...eye), setSteer() {} };
 }
 
 function buildFerrari(spec) {
@@ -197,7 +219,7 @@ export const parkedMaterial = () => kenneyMaterial || library.get(parkedNames()[
  */
 export function getParkedGeometry(name) {
   if (parkedGeo.has(name)) return parkedGeo.get(name);
-  const scene = library.get(name), scale = CAR.library.parkedScale;
+  const scene = library.get(name), scale = CAR.library.kenneyScale;
   scene.updateMatrixWorld(true);
   const parts = [];
   scene.traverse((o) => {

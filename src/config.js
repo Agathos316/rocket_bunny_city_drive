@@ -51,8 +51,9 @@ export const CAR = {
   library: {
     dracoPath: './vendor/three/examples/jsm/libs/draco/gltf/',
     kenneyDir: './assets/models/kenney/',
-    kenneyScale: 2.5,            // Kenney Car Kit model units -> world units (driven and traffic cars)
-    parkedScale: 2.3,            // parked cars are a little smaller so they fit the bays
+    kenneyScale: 2.5,            // Kenney Car Kit model units -> world units (driven, traffic and parked cars)
+    // Kenney cars are chunky cartoons; these bring them nearer a real car's proportions (and the Ferrari's):
+    proportions: { width: 0.8, height: 0.7, wheel: 0.69 },   // body width and height factors, and wheel size factor
     player: {
       ferrari: {
         label: 'Ferrari 458 Italia', kind: 'ferrari', url: './assets/models/ferrari.glb',
