@@ -10,7 +10,7 @@
  */
 import * as THREE from 'three';
 import { reflectionFromSky } from '../environment.js';
-import { disposeCar, hasShowroom, loadShowroom, makeShowroomCar } from '../vehicles/carLibrary.js';
+import { disposeCar, hasCockpit, hasShowroom, loadShowroom, makeShowroomCar } from '../vehicles/carLibrary.js';
 
 export class CarSelector {
   /**
@@ -69,6 +69,8 @@ export class CarSelector {
   }
 }
 
+const PIP_FLIP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);   // cars face +z, cameras look down -z
+
 export class GarageView {
   /** @param {{doc?:Document, sky:THREE.Mesh, onMove:(dir:number)=>void}} o  `sky` is the game's sky mesh (for reflections) */
   constructor({ doc = document, sky, onMove }) {
@@ -103,6 +105,9 @@ export class GarageView {
     this.scene.add(podium, ring);
 
     this.camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+    this.podiumParts = [podium, ring];
+    this.pipEl = doc.getElementById('garage-pip');
+    this.pipCamera = new THREE.PerspectiveCamera(78, 1.6, 0.05, 60);   // the driver's eye, for the cockpit inset
     this.entries = [];          // cars on show: { car, x, targetX }
     this.onResize = () => this.resize();
     this.visible = false;
@@ -126,13 +131,13 @@ export class GarageView {
     window.addEventListener('resize', this.onResize);
     this.resize();
     this.clear();
-    this.setLabel(label, index, count);
+    this.setLabel(label, index, count, name);
     this.add(name, 0, 0);
   }
 
   /** Slide the next car in from the side `dir` and the old one out the other side. */
   showCar(name, label, index, count, dir) {
-    this.setLabel(label, index, count);
+    this.setLabel(label, index, count, name);
     for (const e of this.entries) e.targetX = -dir * 15;
     this.add(name, dir * 15, 0);
   }
@@ -154,6 +159,43 @@ export class GarageView {
     }
     for (const e of this.entries.filter((q) => q.targetX !== 0 && Math.abs(q.x) > 13.5)) this.remove(e);
     this.renderer.render(this.scene, this.camera);
+    this.renderPip();
+  }
+
+  /**
+   * Picture-in-picture: just the cockpit, as the driver sees it, to show this car has a driver's view. The car is
+   * drawn square-on (not turning) and alone, in a box over the corner of the screen; cars without a cockpit show nothing.
+   */
+  renderPip() {
+    const e = this.entries.find((q) => q.name === this.currentName && q.targetX === 0 && Math.abs(q.x) < 0.3);
+    const eye = e && hasCockpit(e.name) && e.car.eye;
+    this.pipEl.hidden = !eye;
+    if (!eye) return;
+    const r = this.pipEl.getBoundingClientRect();
+    const canvas = this.renderer.domElement, cr = canvas.getBoundingClientRect();
+    const x = r.left - cr.left, w = r.width, h = r.height, y = cr.bottom - r.bottom;   // CSS pixels: three scales them itself
+    const { root, tilt } = e.car, spin = root.rotation.y, others = this.entries.filter((q) => q !== e);
+    root.rotation.y = 0;
+    root.updateMatrixWorld(true);
+    tilt.localToWorld(this.pipCamera.position.copy(eye));
+    tilt.getWorldQuaternion(this.pipCamera.quaternion).multiply(PIP_FLIP);
+    this.pipCamera.aspect = w / h;
+    this.pipCamera.updateProjectionMatrix();
+    for (const p of this.podiumParts) p.visible = false;
+    for (const q of others) q.car.root.visible = false;
+    const oldClear = this.renderer.getClearColor(new THREE.Color()), oldAlpha = this.renderer.getClearAlpha();
+    this.renderer.setScissorTest(true);
+    this.renderer.setViewport(x, y, w, h);
+    this.renderer.setScissor(x, y, w, h);
+    this.renderer.setClearColor(0x9fb8d0, 1);
+    this.renderer.clear();
+    this.renderer.render(this.scene, this.pipCamera);
+    this.renderer.setScissorTest(false);
+    this.renderer.setViewport(0, 0, cr.width, cr.height);
+    this.renderer.setClearColor(oldClear, oldAlpha);
+    root.rotation.y = spin;
+    for (const p of this.podiumParts) p.visible = true;
+    for (const q of others) q.car.root.visible = true;
   }
 
   /** Put a car on the stage. It appears at once in its normal model; the detailed showroom model replaces it when it arrives. */
@@ -187,7 +229,8 @@ export class GarageView {
     for (const e of [...this.entries]) this.remove(e);
   }
 
-  setLabel(label, index, count) {
+  setLabel(label, index, count, name) {
+    if (name) this.currentName = name;
     this.nameEl.textContent = label;
     this.countEl.textContent = `${index + 1} / ${count}`;
   }

@@ -27,10 +27,10 @@ export const RENDER = {
   shadowEveryNFrames: 2,         // shadows refresh every Nth frame to save GPU time
   sunDir: [0.553, 0.755, 0.352],
   sunColor: 0xfff0d2,
-  sunIntensity: 1.9,
+  sunIntensity: 2.1,
   hemiSky: 0xcfe4ff,
   hemiGround: 0x8c8573,
-  hemiIntensity: 0.55,
+  hemiIntensity: 0.4,
   groundSize: 1200,
   groundSnap: 16,                // ground plane moves in steps of this size so the asphalt texture never swims
   chunksPerFrame: 1,             // new cells generated per frame while driving
@@ -40,7 +40,7 @@ export const RENDER = {
 export const CAR = {
   scale: 1.5,                    // Ferrari: model units (metres) -> world units
   playerColor: 0xff6a00,         // paint of the Ferrari
-  defaultModel: 'ferrari',
+  defaultModel: 'nissan',
   steeringWheelLock: 1.2,        // steering-wheel rotation (rad) at full lock; the road wheels turn roadWheelLock
   roadWheelLock: 0.5,
   /**
