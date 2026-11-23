@@ -141,6 +141,44 @@ function prepareFerrari(scene) {
 
 /* ------------------------------------------------------------------ building cars */
 
+/* A soft, blurred blob shadow on the road under each car (on top of the sun's shadow map). */
+let blobMaterial = null;
+const blobSize = new Map();   // model key -> { w, l, cz } footprint in model units
+function blobMat() {
+  if (blobMaterial || typeof document === 'undefined') return blobMaterial;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  g.shadowColor = '#000';
+  g.shadowBlur = 18;
+  g.fillStyle = '#000';
+  g.beginPath();
+  g.roundRect(34, 20, 60, 88, 20);   // width x length, long axis vertical (z)
+  g.fill();
+  const tex = new THREE.CanvasTexture(c);
+  blobMaterial = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  return blobMaterial;
+}
+
+/** Add the blob shadow to `tilt` (so it follows the road slope). Call before root is scaled. */
+function addBlobShadow(key, tilt, root) {
+  const mat = blobMat();
+  if (!mat) return;
+  let f = blobSize.get(key);
+  if (!f) {
+    root.updateMatrixWorld(true);
+    const b = new THREE.Box3().setFromObject(tilt);
+    f = { w: b.max.x - b.min.x, l: b.max.z - b.min.z, cz: (b.max.z + b.min.z) / 2 };
+    blobSize.set(key, f);
+  }
+  // the canvas shape fills ~47% x 69% of the texture plus blur, so scale the plane up to match the car
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(f.w * 2.1, f.l * 1.45).rotateX(-Math.PI / 2), mat);
+  m.position.set(0, 0.02, f.cz);
+  m.renderOrder = 1;
+  m.name = 'blobShadow';
+  tilt.add(m);
+}
+
 /** Wrap each named wheel node in a (steer pivot >) spin group centred on the wheel, inside `tilt`. */
 function rigWheels(scene, tilt, ids) {
   const box = new THREE.Box3(), c = new THREE.Vector3(), spin = [], front = [];
@@ -174,6 +212,7 @@ function buildFerrari(spec) {
   model.add(scene);
   tilt.add(model);
   root.add(tilt);
+  addBlobShadow('ferrari', tilt, root);
   root.scale.setScalar(CAR.scale);
   root.updateMatrixWorld(true);
   const { spin, front } = rigWheels(scene, tilt, [['wheel_fl', true], ['wheel_fr', true], ['wheel_rl', false], ['wheel_rr', false]]);
@@ -225,6 +264,7 @@ function buildCar(name, { lod, color, hi }) {
   }
   tilt.add(model);
   root.add(tilt);
+  addBlobShadow(name + (hi ? ':hi' : ''), tilt, root);
   root.scale.setScalar(CAR.scale);
   const paint = (c) => { for (const m of owned) m.color.set(c); };
   if (color !== undefined) paint(color);
