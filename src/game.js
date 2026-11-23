@@ -49,6 +49,7 @@ export class Game {
       onTraffic: (n) => this.traffic.setCount(n, this.player),
       onCar: (model) => {
         this.player.setModel(model);
+        this.audio.setVoice?.(CAR.library.cars[model].sound);
         if (this.chase.mode === 'cockpit' && !this.player.hasCockpit) this.toggleCamera();   // no interior to sit in: back to the chase view
       },
       onSound: (on) => this.audio.setEnabled(on),
@@ -57,6 +58,7 @@ export class Game {
     });
     this.settings.setTraffic?.(TRAFFIC.defaultCount);
     this.settings.setCar?.(CAR.defaultModel);
+    this.audio.setVoice?.(CAR.library.cars[this.player.model].sound);
     this.settings.setSound?.(this.audio.enabled, this.audio.volume);
 
     this.frameCount = 0;

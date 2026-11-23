@@ -66,6 +66,14 @@ function prepareCar(scene, spec) {
       out = new THREE.MeshPhysicalMaterial({ color: m.color, map: m.map, metalness: 0.25, roughness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.08, envMapIntensity: 0.55 });
       out.name = m.name;
       out.userData.isPaint = true;
+    } else if (/glass|window/i.test(m.name) && !m.map) {          // some files ship windows as opaque white: make them dark, shiny and see-through
+      m.transparent = true;
+      m.opacity = Math.min(m.opacity, 0.45);
+      m.depthWrite = false;
+      if (m.color.r + m.color.g + m.color.b > 1.2) m.color.set(0x10161d);
+      m.metalness = 0.6;
+      m.roughness = 0.05;
+      m.envMapIntensity = 1.2;
     } else {
       if (!m.metalnessMap) m.metalness = Math.min(m.metalness, CHROME.test(m.name) ? 0.9 : 0.2);
       if (!m.roughnessMap) m.roughness = Math.min(m.roughness, 0.6);

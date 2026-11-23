@@ -37,7 +37,7 @@ Cars: every vehicle in the game is a 3D model loaded from `assets/models/` (noth
 All sound is synthesised live with the browser's Web Audio API (`src/audio.js`); there are no audio files and no
 dependencies.
 
-- **Engine:** pitch follows your speed through a five-speed gearbox (it climbs, then drops at each shift) and is
+- **Engine:** pitch follows your speed through a gearbox (it climbs, then drops at each shift) and is duller when you lift off the throttle. **Each car has its own voice** (`SOUNDS` in `src/config.js`): the Mustang is a low, lumpy, loud V8 burble; the Nissan is beefy with a turbo whistle; the Ferrari revs highest and brightest; the Camry and Golf are gentle; the Audi and BMW sit in between; and the Tesla has no engine at all, just a rising electric whine, silent when stopped, with more tyre noise. The voice changes when you choose a different car.
   duller when you lift off the throttle.
 - **Road and wind:** road noise and wind grow with speed and stop while you are airborne; tyres squeal when you
   corner or brake hard at speed.
@@ -119,7 +119,7 @@ npm test             # Node's built-in runner, no dependencies, ~15 s
 npm run test:browser # Playwright + headless Chromium smoke test (see below)
 ```
 
-`npm test` runs 64 tests:
+`npm test` runs 67 tests:
 
 - the pure world functions (zones, rivers, stations, heights, the warp and its inverse, terrain carved below roads);
 - the whole `Game` headless against a stub DOM and a fake renderer: boot, acceleration and money, up+left combining,

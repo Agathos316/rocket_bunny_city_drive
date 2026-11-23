@@ -5,8 +5,8 @@ import { installDom } from './helpers/dom.mjs';
 import { fakeAudioContext } from './helpers/audio.mjs';
 
 installDom();
-const { AudioManager, engineModel, zoneAt } = await import('../src/audio.js');
-const { AUDIO, C } = await import('../src/config.js');
+const { AudioManager, engineModel, zoneAt, voiceFor } = await import('../src/audio.js');
+const { AUDIO, C, CAR, SOUNDS } = await import('../src/config.js');
 
 const doc = { hidden: false, handlers: {}, addEventListener(t, f) { this.handlers[t] = f; }, removeEventListener() {} };
 function make() {
@@ -191,4 +191,50 @@ test('visibility: audio suspends while the tab is hidden and resumes when it ret
   assert.equal(ctx.state, 'running');
   audio.dispose();
   assert.equal(ctx.closed, true);
+});
+
+test('voices: every car has an engine voice, and the voices really differ', () => {
+  for (const [name, spec] of Object.entries(CAR.library.cars)) assert.ok(SOUNDS[spec.sound], `${name} has a sound`);
+  const idle = (n) => engineModel(0, 0, voiceFor(n)).freq, top = (n) => engineModel(58, 1, voiceFor(n)).freq;
+  assert.ok(idle('mustang') < idle('camry') && idle('mustang') < idle('ferrari'), 'the Mustang rumbles lowest');
+  assert.ok(top('ferrari') > top('nissan') && top('ferrari') > top('mustang') && top('ferrari') > top('camry'), 'the Ferrari revs highest');
+  assert.ok(voiceFor('mustang').gain > voiceFor('nissan').gain && voiceFor('nissan').gain > voiceFor('camry').gain, 'beefier cars are louder: Mustang > Nissan > Camry');
+  assert.ok(voiceFor('camry').cutoffBase + voiceFor('camry').cutoffRange < voiceFor('ferrari').cutoffBase + voiceFor('ferrari').cutoffRange, 'the Camry is gentler (duller) than the Ferrari');
+  assert.equal(engineModel(40, 1, voiceFor('camry')).gear === engineModel(40, 1, voiceFor('mustang')).gear, false, 'different gearboxes');
+});
+
+test('voices: the electric car has no gear shifts, is silent when stopped and whines with speed', () => {
+  const ev = voiceFor('tesla');
+  let last = 0;
+  for (let v = 0; v <= 58; v += 0.5) {
+    const f = engineModel(v, 1, ev).freq;
+    assert.ok(f >= last - 1e-9, `pitch only ever rises (${v})`);
+    last = f;
+  }
+  const { audio } = make();
+  audio.setVoice('tesla');
+  audio.unlock();
+  audio.update(0.016, state({ speed: 0, throttle: 0 }));
+  assert.equal(audio._engine.whineGain.gain.value, 0, 'no whine when stopped');
+  assert.equal(audio._engine.gain.gain.value, 0, 'silent engine when stopped');
+  audio.update(0.016, state({ speed: 20, throttle: 1 }));
+  const w20 = audio._engine.whine.frequency.value;
+  assert.ok(audio._engine.whineGain.gain.value > 0, 'whine at speed');
+  audio.update(0.016, state({ speed: 45, throttle: 1 }));
+  assert.ok(audio._engine.whine.frequency.value > w20, 'whine rises with speed');
+  assert.equal(audio._engine.saw1.type, 'sine', 'a smooth tone, not a sawtooth engine');
+});
+
+test('voices: switching car changes the engine at once, before or after the audio context exists', () => {
+  const { audio } = make();
+  audio.setVoice('mustang');                    // before unlock
+  audio.unlock();
+  assert.equal(audio._engine.saw2.type, 'square', 'applied when the graph is built');
+  assert.ok(Math.abs(audio._engine.g2.gain.value - voiceFor('mustang').mix[1]) < 1e-9);
+  audio.setVoice('camry');                      // after
+  assert.equal(audio._engine.saw2.type, 'triangle');
+  audio.update(0.016, state({ speed: 30, throttle: 1 }));
+  audio.setVoice('ferrari');
+  audio.update(0.016, state({ speed: 30, throttle: 1 }));
+  assert.ok(audio._engine.filter.Q.value > 1.5, 'the Ferrari is more resonant');
 });

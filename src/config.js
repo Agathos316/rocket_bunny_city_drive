@@ -56,19 +56,20 @@ export const CAR = {
     cullDistance: 235,           // cars further than this are not drawn at all (it is all fog out there)
     cars: {
       ferrari: {
+        sound: 'ferrari',
         label: 'Ferrari 458 Italia', kind: 'ferrari', url: './assets/models/ferrari.glb', cockpit: true,
         rotateY: Math.PI,        // the model's nose is -z; the game's cars face +z
         steerCentre: [-0.35, 0.8, -0.35],   // steering wheel hub and column axis, in the file's own coordinates
         steerAxis: [0, 0.327, 0.945],
         eye: [-0.35, 1.0, 0.1],  // the driver's eye
       },
-      nissan: { label: 'Nissan GT-R R35 (Liberty Walk)', url: './assets/models/cars/nissan.glb', paint: 'r35_paint' },
-      mustang: { label: 'Ford Mustang Fastback (1965)', url: './assets/models/cars/mustang.glb', raw: true, rotateY: Math.PI, scale: 0.82 },   // not from the pipeline: skinned, already in metres, nose towards -z,
-      camry: { label: 'Toyota Camry', url: './assets/models/cars/camry.glb', paint: 'Paint_Color', traffic: true },
-      tesla: { label: 'Tesla Model S', url: './assets/models/cars/tesla.glb', paint: 'primary', traffic: true },
-      audi: { label: 'Audi RS6 Avant', url: './assets/models/cars/audi.glb', paint: 'CarPrimaryColor', traffic: true },
-      bmw: { label: 'BMW M4', url: './assets/models/cars/bmw.glb', traffic: true },
-      golf: { label: 'Volkswagen Golf', url: './assets/models/cars/golf.glb', traffic: true },
+      nissan: { sound: 'nissan', label: 'Nissan GT-R R35 (Liberty Walk)', url: './assets/models/cars/nissan.glb', paint: 'r35_paint' },
+      mustang: { sound: 'mustang', label: 'Ford Mustang Fastback (1965)', url: './assets/models/cars/mustang.glb', raw: true, rotateY: Math.PI, scale: 0.82 },   // not from the pipeline: skinned, already in metres, nose towards -z,
+      camry: { sound: 'camry', label: 'Toyota Camry', url: './assets/models/cars/camry.glb', paint: 'Paint_Color', traffic: true },
+      tesla: { sound: 'tesla', label: 'Tesla Model S', url: './assets/models/cars/tesla.glb', paint: 'primary', traffic: true },
+      audi: { sound: 'audi', label: 'Audi RS6 Avant', url: './assets/models/cars/audi.glb', paint: 'CarPrimaryColor', traffic: true },
+      bmw: { sound: 'bmw', label: 'BMW M4', url: './assets/models/cars/bmw.glb', traffic: true },
+      golf: { sound: 'golf', label: 'Volkswagen Golf', url: './assets/models/cars/golf.glb', traffic: true },
     },
     trafficColors: [0xe6e6e2, 0x15161a, 0x5a5d63, 0x62081a, 0x123c8f, 0x0b2f6b, 0x6e7076, 0x1f3a2c, 0x4a1212, 0xb0aa98, 0x2a2d33, 0x8a4a1a],   // deep colours: the bright sun and tone mapping wash paint out
   },
@@ -165,6 +166,28 @@ export const KEYMAP = {
   left: ['ArrowLeft'],
   right: ['ArrowRight'],
   camera: ['KeyC'],             // switch between the chase camera and the cockpit view
+};
+
+/**
+ * Engine voices, one per car (CAR.library.cars[x].sound). Each shapes the synthesised engine:
+ *   wave1/wave2/waveSub  oscillator shapes (sawtooth is buzzy, triangle soft, square hollow)   mix  their levels
+ *   idleHz, rangeHz      engine pitch at idle and added at the redline    gearSpeeds  where the gearbox shifts (m/s)
+ *   detune               second oscillator's offset (a bigger value is a lumpier, more V8-like rumble)
+ *   cutoffBase/Range     brightness of the note at idle and added at the redline    resonance  how throaty (filter Q)
+ *   gain                 loudness relative to the default    road  tyre-noise multiplier
+ *   whine                optional extra tone { base, perSpeed, gain, throttleOnly }  (an EV's motor, a turbo's whistle)
+ *   ev                   true: silent when stopped, no gear shifts, a whine instead of an engine note
+ * Anything left out takes the value in DEFAULT_VOICE (audio.js), which is the original engine sound.
+ */
+export const SOUNDS = {
+  ferrari: { idleHz: 56, rangeHz: 215, gearSpeeds: [0, 12, 24, 36, 48, 58], detune: 1.003, mix: [0.5, 0.4, 0.25], cutoffBase: 520, cutoffRange: 2700, resonance: 1.9, gain: 1.05 },
+  nissan: { idleHz: 38, rangeHz: 150, gearSpeeds: [0, 11, 22, 34, 46, 58], detune: 1.008, mix: [0.5, 0.45, 0.75], cutoffBase: 380, cutoffRange: 2100, resonance: 1.7, gain: 1.15, whine: { base: 900, perSpeed: 16, gain: 0.012, throttleOnly: true } },
+  mustang: { wave2: 'square', idleHz: 30, rangeHz: 100, gearSpeeds: [0, 14, 28, 43, 58], detune: 1.015, mix: [0.5, 0.3, 1.0], cutoffBase: 300, cutoffRange: 1500, resonance: 2.3, gain: 1.3 },
+  camry: { wave2: 'triangle', idleHz: 44, rangeHz: 108, gearSpeeds: [0, 10, 20, 31, 43, 58], detune: 1.004, mix: [0.32, 0.4, 0.4], cutoffBase: 260, cutoffRange: 1000, resonance: 0.8, gain: 0.72 },
+  golf: { wave2: 'square', idleHz: 50, rangeHz: 125, gearSpeeds: [0, 9, 19, 30, 43, 58], detune: 1.005, mix: [0.34, 0.14, 0.4], cutoffBase: 320, cutoffRange: 1400, resonance: 1.0, gain: 0.8 },
+  audi: { idleHz: 40, rangeHz: 125, gearSpeeds: [0, 11, 22, 34, 46, 58], detune: 1.007, mix: [0.45, 0.35, 0.5], cutoffBase: 340, cutoffRange: 1700, resonance: 1.3, gain: 0.95 },
+  bmw: { wave2: 'triangle', idleHz: 46, rangeHz: 145, gearSpeeds: [0, 11, 22, 34, 46, 58], detune: 1.004, mix: [0.45, 0.3, 0.4], cutoffBase: 420, cutoffRange: 1900, resonance: 1.2, gain: 0.9 },
+  tesla: { ev: true, wave1: 'sine', wave2: 'sine', waveSub: 'sine', idleHz: 60, rangeHz: 80, gearSpeeds: [0, 58], detune: 1.0, mix: [0.3, 0.1, 0.3], cutoffBase: 400, cutoffRange: 600, resonance: 0.5, gain: 0.35, road: 1.6, whine: { base: 230, perSpeed: 44, gain: 0.17 } },
 };
 
 /** Procedurally synthesised sound (Web Audio). No audio files are used. */

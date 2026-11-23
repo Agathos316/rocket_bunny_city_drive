@@ -76,26 +76,69 @@ function reduce(p, target, sloppy) {
   return { indices: newIdx, attrs };
 }
 
+
+/** For primitives without UVs: weld by position, simplify with rising error until the target, rebuild crease-aware normals. */
+function reduceByPosition(r, shareTris, prune) {
+  const pos = r.attrs.POSITION.array, n = pos.length / 3, rep = new Uint32Array(n), seen = new Map();
+  for (let v = 0; v < n; v++) { const k = Math.round(pos[v * 3] * 2000) + ',' + Math.round(pos[v * 3 + 1] * 2000) + ',' + Math.round(pos[v * 3 + 2] * 2000); let m = seen.get(k); if (m === undefined) { m = v; seen.set(k, v); } rep[v] = m; }
+  const idxW = new Uint32Array(r.indices.length); for (let i = 0; i < idxW.length; i++) idxW[i] = rep[r.indices[i]];
+  const posF = new Float32Array(pos);
+  let res = idxW;
+  if (idxW.length / 3 > shareTris) {
+    for (const err of [0.004, 0.01, 0.025, 0.06, 0.15, 0.3]) {
+      res = MeshoptSimplifier.simplify(idxW, posF, 3, Math.max(9, Math.floor(shareTris) * 3), err, prune ? ['Prune', 'Permissive'] : ['Permissive'])[0];
+      if (res.length / 3 <= shareTris * 1.15) break;
+    }
+  }
+  // face normals (area-weighted) and per-position face lists
+  const T = res.length / 3, fn = new Float32Array(T * 3), faces = new Map();
+  for (let t = 0; t < T; t++) {
+    const a = res[t * 3], b = res[t * 3 + 1], c = res[t * 3 + 2];
+    const ux = posF[b * 3] - posF[a * 3], uy = posF[b * 3 + 1] - posF[a * 3 + 1], uz = posF[b * 3 + 2] - posF[a * 3 + 2];
+    const vx = posF[c * 3] - posF[a * 3], vy = posF[c * 3 + 1] - posF[a * 3 + 1], vz = posF[c * 3 + 2] - posF[a * 3 + 2];
+    fn[t * 3] = uy * vz - uz * vy; fn[t * 3 + 1] = uz * vx - ux * vz; fn[t * 3 + 2] = ux * vy - uy * vx;     // length = 2 x area
+    for (const v of [a, b, c]) { let l = faces.get(v); if (!l) faces.set(v, l = []); l.push(t); }
+  }
+  const CREASE = Math.cos(58 * Math.PI / 180), outPos = [], outNor = [], dedupe = new Map(), outIdx = new Uint32Array(T * 3);
+  for (let t = 0; t < T; t++) {
+    const l0 = Math.hypot(fn[t * 3], fn[t * 3 + 1], fn[t * 3 + 2]) || 1, nx = fn[t * 3] / l0, ny = fn[t * 3 + 1] / l0, nz = fn[t * 3 + 2] / l0;
+    for (let k = 0; k < 3; k++) {
+      const v = res[t * 3 + k]; let sx = 0, sy = 0, sz = 0;
+      for (const g of faces.get(v)) {
+        const lg = Math.hypot(fn[g * 3], fn[g * 3 + 1], fn[g * 3 + 2]) || 1;
+        if ((fn[g * 3] * nx + fn[g * 3 + 1] * ny + fn[g * 3 + 2] * nz) / lg >= CREASE) { sx += fn[g * 3]; sy += fn[g * 3 + 1]; sz += fn[g * 3 + 2]; }
+      }
+      const ls = Math.hypot(sx, sy, sz) || 1; sx /= ls; sy /= ls; sz /= ls;
+      const key = v + ':' + Math.round(sx * 40) + ',' + Math.round(sy * 40) + ',' + Math.round(sz * 40);
+      let m = dedupe.get(key);
+      if (m === undefined) { m = outPos.length / 3; dedupe.set(key, m); outPos.push(posF[v * 3], posF[v * 3 + 1], posF[v * 3 + 2]); outNor.push(sx, sy, sz); }
+      outIdx[t * 3 + k] = m;
+    }
+  }
+  return { indices: outIdx, attrs: { POSITION: { array: new Float32Array(outPos), type: 'VEC3', normalized: false }, NORMAL: { array: new Float32Array(outNor), type: 'VEC3', normalized: false } } };
+}
+
 const tri = (list) => list.reduce((s, r) => s + r.indices.length / 3, 0);
 const total = prims.reduce((s, p) => s + p.getIndices().getCount() / 3, 0);
 const levels = [];
 let source = prims.map((p) => ({ prim: p, indices: new Uint32Array(p.getIndices().getArray()), attrs: Object.fromEntries(p.listSemantics().map((s) => [s, { array: p.getAttribute(s).getArray(), type: p.getAttribute(s).getType(), normalized: p.getAttribute(s).getNormalized() }])) }));
 // per-primitive share of the budget
-function build(target, sloppy, from) {
+function build(target, sloppy, from, prune) {
   const cur = from.reduce((s, r) => s + r.indices.length / 3, 0);
   return from.map((r, i) => {
     const share = Math.max(30, Math.round(target * (r.indices.length / 3) / cur));
     const fake = { getIndices: () => ({ getArray: () => r.indices }), getAttribute: (s) => r.attrs[s] ? { getArray: () => r.attrs[s].array, getElementSize: () => ({ SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 }[r.attrs[s].type]), getType: () => r.attrs[s].type, getNormalized: () => r.attrs[s].normalized } : undefined, listSemantics: () => Object.keys(r.attrs) };
-    const res = r.indices.length / 3 <= share ? { indices: r.indices, attrs: r.attrs } : reduce(fake, share * 3, sloppy);
+    const noUV = !r.attrs.TEXCOORD_0;
+    const res = noUV ? reduceByPosition(r, share, prune) : (r.indices.length / 3 <= share ? { indices: r.indices, attrs: r.attrs } : reduce(fake, share * 3, sloppy));
     return { prim: r.prim, indices: res.indices, attrs: res.attrs };
   });
 }
 // careful (topology- and attribute-preserving) reduction for the near levels; the blunt one only for the farthest
-let l0 = build(T[0], false, source);
-if (tri(l0) > T[0] * 2.2) l0 = build(T[0] * 1.6, true, l0);
-let l1 = build(T[1], false, l0);
-if (tri(l1) > T[1] * 2.2) l1 = build(T[1] * 1.4, true, l1);
-const l2 = build(T[2], true, l1);
+let l0 = build(T[0], false, source, false);
+if (tri(l0) > T[0] * 2.2) l0 = build(T[0] * 1.6, true, l0, true);
+let l1 = build(T[1], false, l0, true);
+if (tri(l1) > T[1] * 2.2) l1 = build(T[1] * 1.4, true, l1, true);
+const l2 = build(T[2], true, l1, true);
 console.log(out, 'LOD tris', tri(l0), tri(l1), tri(l2), 'scale', scale.toFixed(4), 'size', size.map((v) => (v * scale).toFixed(2)).join(' x '));
 
 // replace meshes with LOD0/1/2 nodes
