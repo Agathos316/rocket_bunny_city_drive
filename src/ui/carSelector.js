@@ -10,7 +10,7 @@
  */
 import * as THREE from 'three';
 import { reflectionFromSky } from '../environment.js';
-import { makeCar, disposeCar } from '../vehicles/carLibrary.js';
+import { disposeCar, hasShowroom, loadShowroom, makeShowroomCar } from '../vehicles/carLibrary.js';
 
 export class CarSelector {
   /**
@@ -156,12 +156,25 @@ export class GarageView {
     this.renderer.render(this.scene, this.camera);
   }
 
+  /** Put a car on the stage. It appears at once in its normal model; the detailed showroom model replaces it when it arrives. */
   add(name, x, targetX) {
-    const car = makeCar(name);
-    car.root.rotation.y = 0.6;
-    car.root.position.x = x;
-    this.scene.add(car.root);
-    this.entries.push({ car, x, targetX });
+    const entry = { name, car: makeShowroomCar(name), x, targetX };
+    entry.car.root.rotation.y = 0.6;
+    entry.car.root.position.x = x;
+    this.scene.add(entry.car.root);
+    this.entries.push(entry);
+    if (!hasShowroom(name)) {
+      loadShowroom(name).then((ok) => {
+        if (!ok || !this.entries.includes(entry)) return;      // none to load, or the car has left the stage meanwhile
+        const old = entry.car, fresh = makeShowroomCar(name);
+        fresh.root.position.copy(old.root.position);
+        fresh.root.rotation.copy(old.root.rotation);
+        this.scene.remove(old.root);
+        disposeCar(old);
+        this.scene.add(fresh.root);
+        entry.car = fresh;
+      });
+    }
   }
 
   remove(e) {

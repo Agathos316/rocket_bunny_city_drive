@@ -11,6 +11,8 @@ node lods.mjs      stage1.glb out.glb length rotateYdeg lod0Tris lod1Tris lod2Tr
                                                      # centre, ground, rotate the nose to +z, scale to `length` metres, build LOD0..LOD2
 node lods_t.mjs    ...same arguments...              # stricter reduction (locks mesh borders); used for the Tesla, whose textures tore otherwise
 node draco.mjs     out.glb final.glb                 # Draco-compress the geometry
+node prep.mjs      in.glb stage1.glb 1024 webp         # (the showroom models: bigger textures, WebP)
+ONLY_LOD0=1 node lods.mjs ... 150000 1 1              # (the showroom models: one detailed level, 100-170k triangles)
 node texonly.mjs   in.glb out.glb 1024               # just resize textures (the skinned Mustang)
 ```
 

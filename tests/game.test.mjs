@@ -409,6 +409,18 @@ test('camera: cars without a cockpit stay in the chase view, and switching to on
   assert.equal(game.chase.mode, 'cockpit');
 });
 
+test('showroom: every pipeline car points at a detailed model file that exists; the Ferrari and Mustang need none', async () => {
+  const { existsSync } = await import('node:fs');
+  const { hasShowroom, makeShowroomCar } = await import('../src/vehicles/carLibrary.js');
+  for (const [name, spec] of Object.entries(CAR.library.cars)) {
+    const pipeline = !spec.raw && spec.kind !== 'ferrari';
+    assert.equal(!!spec.showroom, pipeline, `${name}: showroom file only for pipeline cars`);
+    if (spec.showroom) assert.ok(existsSync(new URL('../' + spec.showroom, import.meta.url)), `${name}: ${spec.showroom} exists`);
+    assert.equal(hasShowroom(name), false);
+    assert.ok(makeShowroomCar(name).root, `${name}: the selector can show the normal model until the detailed one loads`);
+  }
+});
+
 test('car selector: Space opens it, arrows cycle the carousel, Space chooses, Esc cancels, and the game is paused meanwhile', () => {
   const { game, input, audio } = makeGame({ traffic: 0 });
   const before = game.player.car.root, names = Object.keys(CAR.library.cars);

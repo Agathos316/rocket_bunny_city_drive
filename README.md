@@ -120,7 +120,7 @@ npm test             # Node's built-in runner, no dependencies, ~15 s
 npm run test:browser # Playwright + headless Chromium smoke test (see below)
 ```
 
-`npm test` runs 69 tests:
+`npm test` runs 70 tests:
 
 - the pure world functions (zones, rivers, stations, heights, the warp and its inverse, terrain carved below roads);
 - the whole `Game` headless against a stub DOM and a fake renderer: boot, acceleration and money, up+left combining,

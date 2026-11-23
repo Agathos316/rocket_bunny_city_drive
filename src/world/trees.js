@@ -60,7 +60,7 @@ function trunk(rand, height, radius, branches, branchTopY) {
 
 /** A lumpy foliage mass: a subdivided icosahedron with noise-displaced vertices, flattened a little underneath. */
 function lobe(rand, radius, cx, cy, cz, hue) {
-  const g = new THREE.IcosahedronGeometry(1, 2).toNonIndexed();
+  const g = new THREE.IcosahedronGeometry(1, 2);                  // (already non-indexed)
   const p = g.attributes.position, seed = rand() * 100;
   for (let i = 0; i < p.count; i += 3) {                          // vertices are displaced by position, so shared corners stay joined
     for (let k = 0; k < 3; k++) {

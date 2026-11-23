@@ -79,6 +79,7 @@ function reduce(p, target, sloppy) {
 
 /** For primitives without UVs: weld by position, simplify with rising error until the target, rebuild crease-aware normals. */
 function reduceByPosition(r, shareTris, prune) {
+  if (r.indices.length / 3 <= shareTris) return { indices: r.indices, attrs: r.attrs };   // already small enough: keep the original vertices and normals untouched
   const pos = r.attrs.POSITION.array, n = pos.length / 3, rep = new Uint32Array(n), seen = new Map();
   for (let v = 0; v < n; v++) { const k = Math.round(pos[v * 3] * 2000) + ',' + Math.round(pos[v * 3 + 1] * 2000) + ',' + Math.round(pos[v * 3 + 2] * 2000); let m = seen.get(k); if (m === undefined) { m = v; seen.set(k, v); } rep[v] = m; }
   const idxW = new Uint32Array(r.indices.length); for (let i = 0; i < idxW.length; i++) idxW[i] = rep[r.indices[i]];
@@ -136,9 +137,10 @@ function build(target, sloppy, from, prune) {
 // careful (topology- and attribute-preserving) reduction for the near levels; the blunt one only for the farthest
 let l0 = build(T[0], false, source, false);
 if (tri(l0) > T[0] * 2.2) l0 = build(T[0] * 1.6, true, l0, true);
-let l1 = build(T[1], false, l0, true);
-if (tri(l1) > T[1] * 2.2) l1 = build(T[1] * 1.4, true, l1, true);
-const l2 = build(T[2], true, l1, true);
+const ONLY0 = !!process.env.ONLY_LOD0;
+let l1 = ONLY0 ? l0 : build(T[1], false, l0, true);
+if (!ONLY0 && tri(l1) > T[1] * 2.2) l1 = build(T[1] * 1.4, true, l1, true);
+const l2 = ONLY0 ? l0 : build(T[2], true, l1, true);
 console.log(out, 'LOD tris', tri(l0), tri(l1), tri(l2), 'scale', scale.toFixed(4), 'size', size.map((v) => (v * scale).toFixed(2)).join(' x '));
 
 // replace meshes with LOD0/1/2 nodes
@@ -154,8 +156,8 @@ const make = (name, lvl) => {
   const node = doc.createNode(name).setMesh(mesh);
   scene.addChild(node);
 };
-make('LOD0', l0); make('LOD1', l1); make('LOD2', l2);
-for (const n of origNodes) if (!['LOD0', 'LOD1', 'LOD2'].includes(n.getName())) { scene.removeChild(n); n.dispose(); }
+make('LOD0', l0); if (!process.env.ONLY_LOD0) { make('LOD1', l1); make('LOD2', l2); }
+for (const n of origNodes) if (!['LOD0', 'LOD1', 'LOD2'].includes(n.getName()) || false) { scene.removeChild(n); n.dispose(); }
 for (const m of origMeshes) m.dispose();
 await doc.transform(prune());
 await io.write(out, doc);

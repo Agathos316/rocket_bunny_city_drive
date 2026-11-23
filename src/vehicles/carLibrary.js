@@ -23,6 +23,8 @@ import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
 import { CAR } from '../config.js';
 
 const library = new Map();    // name -> template scene (never modified after registration)
+const showroom = new Map();   // name -> the much more detailed version used by the car selector (loaded on demand)
+const showroomLoading = new Map();
 const Y = new THREE.Vector3(0, 1, 0);
 const specOf = (name) => CAR.library.cars[name];
 
@@ -80,6 +82,7 @@ function prepareCar(scene, spec) {
       m.envMapIntensity = 0.7;
       if (m.transparent) m.depthWrite = false;
     }
+    if (spec.doubleSided) out.side = THREE.DoubleSide;
     swapped.set(m, out);
     return out;
   };
@@ -194,8 +197,8 @@ function buildFerrari(spec) {
  * A pipeline-built or raw car. `lod` = use all three detail levels (traffic and parked cars); otherwise only the
  * best one. `color` repaints the body if the model has a paint material (traffic cars).
  */
-function buildCar(name, { lod, color }) {
-  const spec = specOf(name), template = library.get(name);
+function buildCar(name, { lod, color, hi }) {
+  const spec = specOf(name), template = hi ? showroom.get(name) : library.get(name);
   const scene = spec.raw ? SkeletonUtils.clone(template) : template.clone(true);   // skinned meshes must be cloned with their own bones
   const owned = [];
   scene.traverse((o) => {              // paint is per car so recolouring never touches the shared template
@@ -241,6 +244,35 @@ export function makeTrafficCar(index, color) {
   const names = trafficNames();
   if (!names.length) throw new Error('No traffic car models are loaded');
   return buildCar(names[index % names.length], { lod: true, color });
+}
+
+/**
+ * The car selector shows cars much closer and larger than the game ever does, so each pipeline car has a far more
+ * detailed `showroom` file (see CAR.library.cars). It is only fetched when the selector first shows that car.
+ * Resolves true once the detailed version is ready (false if the car has none, or it failed to load: the normal model stays).
+ */
+export function loadShowroom(name) {
+  const spec = specOf(name);
+  if (!spec?.showroom) return Promise.resolve(false);
+  if (showroom.has(name)) return Promise.resolve(true);
+  if (!showroomLoading.has(name)) {
+    const draco = new DRACOLoader();
+    draco.setDecoderPath(CAR.library.dracoPath);
+    const loader = new GLTFLoader();
+    loader.setDRACOLoader(draco);
+    showroomLoading.set(name, loader.loadAsync(spec.showroom)
+      .then((gltf) => { showroom.set(name, prepareCar(gltf.scene, spec)); return true; })
+      .catch((error) => { console.warn(`Could not load the detailed ${name} model; the normal one stays.`, error); return false; })
+      .finally(() => draco.dispose()));
+  }
+  return showroomLoading.get(name);
+}
+
+export const hasShowroom = (name) => showroom.has(name);
+
+/** A car for the car selector: the detailed version if it has loaded, otherwise the normal player's model. */
+export function makeShowroomCar(name) {
+  return showroom.has(name) ? buildCar(name, { lod: false, hi: true }) : makeCar(name);
 }
 
 /** Free the per-car paint (the shared templates' geometry and other materials stay). */
