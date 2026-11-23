@@ -166,6 +166,7 @@ export const KEYMAP = {
   left: ['ArrowLeft'],
   right: ['ArrowRight'],
   camera: ['KeyC'],             // switch between the chase camera and the cockpit view
+  select: ['Space'],            // open the car selector; Space again chooses the car on show (arrows move, Esc cancels)
 };
 
 /**
@@ -187,7 +188,7 @@ export const SOUNDS = {
   golf: { wave2: 'square', idleHz: 50, rangeHz: 125, gearSpeeds: [0, 9, 19, 30, 43, 58], detune: 1.005, mix: [0.34, 0.14, 0.4], cutoffBase: 320, cutoffRange: 1400, resonance: 1.0, gain: 0.8 },
   audi: { idleHz: 40, rangeHz: 125, gearSpeeds: [0, 11, 22, 34, 46, 58], detune: 1.007, mix: [0.45, 0.35, 0.5], cutoffBase: 340, cutoffRange: 1700, resonance: 1.3, gain: 0.95 },
   bmw: { wave2: 'triangle', idleHz: 46, rangeHz: 145, gearSpeeds: [0, 11, 22, 34, 46, 58], detune: 1.004, mix: [0.45, 0.3, 0.4], cutoffBase: 420, cutoffRange: 1900, resonance: 1.2, gain: 0.9 },
-  tesla: { ev: true, wave1: 'sine', wave2: 'sine', waveSub: 'sine', idleHz: 60, rangeHz: 80, gearSpeeds: [0, 58], detune: 1.0, mix: [0.3, 0.1, 0.3], cutoffBase: 400, cutoffRange: 600, resonance: 0.5, gain: 0.35, road: 1.6, whine: { base: 230, perSpeed: 44, gain: 0.17 } },
+  tesla: { ev: true, wave1: 'sine', wave2: 'sine', waveSub: 'sine', idleHz: 60, rangeHz: 80, gearSpeeds: [0, 58], detune: 1.0, mix: [0.3, 0.1, 0.3], cutoffBase: 400, cutoffRange: 600, resonance: 0.5, gain: 0.35, road: 1.6, whine: { base: 230, perSpeed: 44, gain: 0.017 } }   // (the whine was far too loud at 0.17: now a tenth of that),
 };
 
 /** Procedurally synthesised sound (Web Audio). No audio files are used. */

@@ -22,3 +22,16 @@ canvas{display:block}
 #fatal b{font-size:22px}
 #fatal code{font-size:13px;opacity:.8;max-width:min(90vw,640px);overflow-wrap:anywhere}
 .fatal-static{position:fixed;inset:0;margin:0;padding:24px;background:#14202c;color:#fff}
+
+#set .carline{margin:8px 0}
+#set .carline span{font-size:11px;opacity:.7}
+#garage{position:fixed;inset:0;z-index:20;backdrop-filter:blur(16px) brightness(.65);-webkit-backdrop-filter:blur(16px) brightness(.65);background:radial-gradient(ellipse at 50% 58%,rgba(24,30,46,.15),rgba(6,8,14,.72))}
+#garage[hidden]{display:none}
+#garage-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#garage-title{position:absolute;left:0;right:0;top:max(22px,env(safe-area-inset-top));text-align:center;text-shadow:0 2px 12px rgba(0,0,0,.6)}
+#garage-title b{display:block;font-size:clamp(22px,4vw,40px);font-style:italic;font-weight:800;letter-spacing:.5px}
+#garage-title span{font-size:14px;opacity:.7}
+#garage-hint{position:absolute;left:0;right:0;bottom:max(22px,env(safe-area-inset-bottom));text-align:center;font-size:14px;opacity:.85}
+#garage-prev,#garage-next{position:absolute;top:50%;transform:translateY(-50%);width:56px;height:80px;border:0;border-radius:12px;background:rgba(14,18,26,.5);color:#fff;font-size:44px;line-height:1;cursor:pointer}
+#garage-prev{left:max(16px,env(safe-area-inset-left))}
+#garage-next{right:max(16px,env(safe-area-inset-right))}

@@ -238,3 +238,23 @@ test('voices: switching car changes the engine at once, before or after the audi
   audio.update(0.016, state({ speed: 30, throttle: 1 }));
   assert.ok(audio._engine.filter.Q.value > 1.5, 'the Ferrari is more resonant');
 });
+
+test('pause: the car selector silences the game without touching the Sound setting', () => {
+  const { audio } = make();
+  audio.unlock();
+  const level = () => audio._master.gain.value;
+  assert.equal(level(), audio.volume);
+  audio.setPaused(true);
+  assert.equal(level(), 0, 'silent while paused');
+  assert.equal(audio.enabled, true, 'the Sound checkbox is unaffected');
+  audio.setVolume(0.3);
+  assert.equal(level(), 0, 'changing the volume while paused stays silent');
+  audio.setPaused(false);
+  assert.equal(level(), 0.3, 'back at the chosen volume');
+  audio.setEnabled(false); audio.setPaused(true); audio.setPaused(false);
+  assert.equal(level(), 0, 'muted stays muted');
+});
+
+test('voices: the Tesla whine is quiet (a tenth of what it was)', () => {
+  assert.ok(voiceFor('tesla').whine.gain <= 0.02);
+});

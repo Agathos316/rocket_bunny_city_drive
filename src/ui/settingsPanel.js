@@ -1,20 +1,20 @@
 /**
- * The settings panel opened by the cog in the bottom-left corner: car choice, traffic amount and the controls help.
+ * The settings panel opened by the cog in the bottom-left corner: the current car (changed with Space, see carSelector.js),
+ * traffic amount, sound and the controls help.
  * Any future controls or info belong here.
  */
 export class SettingsPanel {
   /**
    * @param {object} opts
    * @param {(count:number)=>void} opts.onTraffic  called when the traffic slider moves
-   * @param {(model:string)=>void} opts.onCar      called when a different car is chosen
    * @param {(on:boolean)=>void} opts.onSound      called when sound is switched on or off
    * @param {(volume:number)=>void} opts.onVolume  called when the volume slider moves (0..1)
    */
-  constructor({ onTraffic, onCar, onSound, onVolume, doc = document }) {
+  constructor({ onTraffic, onSound, onVolume, doc = document }) {
     this.doc = doc;
     this.cog = doc.getElementById('cog');
     this.panel = doc.getElementById('set');
-    this.carSelect = doc.getElementById('car');
+    this.carName = doc.getElementById('carname');
     this.slider = doc.getElementById('tr');
     this.sliderLabel = doc.getElementById('tv');
     this.soundBox = doc.getElementById('snd');
@@ -35,10 +35,6 @@ export class SettingsPanel {
     });
     this.volume.addEventListener('input', () => onVolume(+this.volume.value / 100));
     this.volume.addEventListener('change', () => this.volume.blur());
-    this.carSelect.addEventListener('change', () => {
-      onCar(this.carSelect.value);
-      this.carSelect.blur();
-    });
   }
 
   setTraffic(count) {
@@ -51,7 +47,7 @@ export class SettingsPanel {
     this.volume.value = Math.round(volume * 100);
   }
 
-  setCar(model) {
-    this.carSelect.value = model;
+  setCar(label) {
+    this.carName.textContent = label;
   }
 }

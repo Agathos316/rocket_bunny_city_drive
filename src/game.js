@@ -21,11 +21,12 @@ import { ParkedManager } from './traffic/parkedManager.js';
 import { Hud } from './ui/hud.js';
 import { SettingsPanel } from './ui/settingsPanel.js';
 import { AudioManager } from './audio.js';
+import { CarSelector, GarageView } from './ui/carSelector.js';
 
 export class Game {
   /**
    * Everything is created for you; pass `deps` to substitute parts (tests do this):
-   * { parent, renderer, input, hud, settings, audio, makeReflection }
+   * { parent, renderer, input, hud, settings, audio, makeReflection, garageView }
    * The car library (vehicles/carLibrary.js) must already be loaded: main.js awaits loadCarLibrary() first.
    */
   constructor(deps = {}) {
@@ -47,28 +48,33 @@ export class Game {
     this.audio = deps.audio || new AudioManager();
     this.settings = deps.settings || new SettingsPanel({
       onTraffic: (n) => this.traffic.setCount(n, this.player),
-      onCar: (model) => {
-        this.player.setModel(model);
-        this.audio.setVoice?.(CAR.library.cars[model].sound);
-        if (this.chase.mode === 'cockpit' && !this.player.hasCockpit) this.toggleCamera();   // no interior to sit in: back to the chase view
-      },
       onSound: (on) => this.audio.setEnabled(on),
       onVolume: (v) => this.audio.setVolume(v),
       doc: document,
     });
     this.settings.setTraffic?.(TRAFFIC.defaultCount);
-    this.settings.setCar?.(CAR.defaultModel);
+    this.settings.setCar?.(CAR.library.cars[CAR.defaultModel].label);
     this.audio.setVoice?.(CAR.library.cars[this.player.model].sound);
     this.settings.setSound?.(this.audio.enabled, this.audio.volume);
 
+    this.selector = new CarSelector({
+      names: Object.keys(CAR.library.cars),
+      labelOf: (name) => CAR.library.cars[name].label,
+      makeView: () => deps.garageView || new GarageView({ doc: document, sky: this.environment.sky, onMove: (d) => this.selector.move(d) }),
+      onSelect: (name) => this.chooseCar(name),
+      onOpen: () => this.audio.setPaused?.(true),
+      onClose: () => this.audio.setPaused?.(false),
+    });
+
     this.frameCount = 0;
+    this.idleFrames = 0;
     this.crashes = 0;
     this.running = false;
     this.lastTime = 0;
     this.frame = this.frame.bind(this);
     this.onResize = this.onResize.bind(this);
     this.onGesture = () => this.audio.unlock();   // browsers only allow sound after a key press or click
-    this.onKey = (e) => { if (!e.repeat && KEYMAP.camera.includes(e.code)) this.toggleCamera(); };
+    this.onKey = (e) => this.handleKey(e);
     window.addEventListener('keydown', this.onKey);
     window.addEventListener('resize', this.onResize);
     window.addEventListener('keydown', this.onGesture);
@@ -78,6 +84,30 @@ export class Game {
     this.parkedCars.refresh(this.player.gx, this.player.gz);
     this.traffic.setCount(TRAFFIC.defaultCount, this.player);
     this.chase.snapTo(this.player);
+  }
+
+  /** Keys the game itself handles (driving keys go through InputManager): car selector, camera. */
+  handleKey(e) {
+    const open = this.selector.isOpen;
+    if (KEYMAP.select.includes(e.code)) {
+      e.preventDefault?.();                                   // Space must not scroll the page or press a focused button
+      if (!e.repeat) { if (open) this.selector.confirm(); else this.selector.open(this.player.model); }
+    } else if (open) {
+      if (KEYMAP.left.includes(e.code)) this.selector.move(-1);
+      else if (KEYMAP.right.includes(e.code)) this.selector.move(1);
+      else if (e.code === 'Escape') this.selector.cancel();
+      e.preventDefault?.();
+    } else if (!e.repeat && KEYMAP.camera.includes(e.code)) this.toggleCamera();
+  }
+
+  /** The car chosen in the selector becomes the player's car; its engine voice and camera follow. */
+  chooseCar(name) {
+    if (name !== this.player.model) {
+      this.player.setModel(name);
+      this.audio.setVoice?.(CAR.library.cars[name].sound);
+      this.settings.setCar?.(CAR.library.cars[name].label);
+      if (this.chase.mode === 'cockpit' && !this.player.hasCockpit) this.toggleCamera();   // no interior to sit in: back to the chase view
+    }
   }
 
   /** Chase view <-> cockpit view. */
@@ -103,6 +133,7 @@ export class Game {
     window.removeEventListener('resize', this.onResize);
     window.removeEventListener('keydown', this.onGesture);
     window.removeEventListener('keydown', this.onKey);
+    this.selector.view?.hide?.();
     window.removeEventListener('pointerdown', this.onGesture);
     this.audio.dispose?.();
     this.input.dispose?.();
@@ -119,12 +150,14 @@ export class Game {
     const dt = Math.min(0.05, (now - this.lastTime) / 1000);   // clamp so a long pause never launches the car
     this.lastTime = now;
     this.update(dt);
-    this.renderer.render(this.scene, this.camera);
+    // behind the blurred car selector the game is frozen, so it only needs redrawing now and then
+    if (!this.selector.isOpen || this.idleFrames++ % 8 === 0) this.renderer.render(this.scene, this.camera);
     this.raf = requestAnimationFrame(this.frame);
   }
 
   /** Advance the simulation by dt seconds. */
   update(dt) {
+    if (this.selector.isOpen) { this.selector.update(dt); return; }   // the game is paused behind the car selector
     const input = this.input.read();
     this.signals.update(dt);
     this.stepPlayer(dt, input);

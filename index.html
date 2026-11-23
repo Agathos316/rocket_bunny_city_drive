@@ -22,18 +22,7 @@
 <button id="cog" aria-label="Settings">⚙</button>
 <div class="hud" id="set" hidden>
   <b>Settings</b>
-  <label>Your car
-    <select id="car">
-      <option value="ferrari">Ferrari 458 Italia</option>
-      <option value="nissan">Nissan GT-R R35 (Liberty Walk)</option>
-      <option value="mustang">Ford Mustang Fastback (1965)</option>
-      <option value="camry">Toyota Camry</option>
-      <option value="tesla">Tesla Model S</option>
-      <option value="audi">Audi RS6 Avant</option>
-      <option value="bmw">BMW M4</option>
-      <option value="golf">Volkswagen Golf</option>
-    </select>
-  </label>
+  <p class="carline">Your car: <b id="carname">Ferrari 458 Italia</b><br><span>Press Space to change</span></p>
   <label>Traffic: <b id="tv">16</b> cars
     <input type="range" id="tr" min="0" max="40" value="16">
   </label>
@@ -42,7 +31,15 @@
     <input type="range" id="vol" min="0" max="100" value="60">
   </label>
   <p class="credits">Car models: see assets/models/README.md. Ferrari 458 Italia by vicent091036; Toyota Camry 2020 by ItsDiyor (CC BY 4.0); Mustang 1965 by Godspeed (CC BY 4.0).</p>
-  <p>↑ accelerate · ↓ brake / reverse<br>← → steer (combine freely)<br>C camera: chase / cockpit (Ferrari only)<br>Hit a car and you restart at the start, and your money resets.</p>
+  <p>↑ accelerate · ↓ brake / reverse<br>← → steer (combine freely)<br>Space change car · C camera: chase / cockpit (Ferrari only)<br>Hit a car and you restart at the start, and your money resets.</p>
+</div>
+
+<div id="garage" hidden>
+  <canvas id="garage-canvas"></canvas>
+  <div id="garage-title"><b id="garage-name"></b><span id="garage-count"></span></div>
+  <button id="garage-prev" aria-label="Previous car" tabindex="-1">‹</button>
+  <button id="garage-next" aria-label="Next car" tabindex="-1">›</button>
+  <div id="garage-hint">← → change car &nbsp;·&nbsp; Space choose &nbsp;·&nbsp; Esc cancel</div>
 </div>
 
 <div id="crash">CRASH</div>

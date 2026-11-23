@@ -42,7 +42,8 @@ export function recordingAudio() {
   const calls = [];
   const rec = (name) => (...args) => calls.push([name, ...args]);
   return {
-    calls, enabled: true, volume: 0.6,
+    calls, enabled: true, volume: 0.6, paused: false, voice: null,
+    setPaused(on) { this.paused = on; }, setVoice(name) { this.voice = name; },
     unlock: rec('unlock'), update: rec('update'), crash: rec('crash'), thud: rec('thud'),
     bump: rec('bump'), landing: rec('landing'), setEnabled: rec('setEnabled'), setVolume: rec('setVolume'), dispose() {},
     count: (name) => calls.filter((c) => c[0] === name).length,

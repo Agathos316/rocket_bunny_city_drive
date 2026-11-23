@@ -59,6 +59,7 @@ export class AudioManager {
     this.factory = contextFactory || (Ctor ? () => new Ctor() : null);
     this.supported = !!this.factory;
     this.enabled = true;
+    this.paused = false;        // true while the game is paused (the car selector): silent, without touching the Sound setting
     this.volume = AUDIO.volume;
     this.ctx = null;
     this.zone = 'city';
@@ -107,14 +108,24 @@ export class AudioManager {
   setEnabled(on) {
     this.enabled = !!on;
     if (!this.ctx) return;
-    this._master.gain.setTargetAtTime(this.enabled ? this.volume : 0, this.ctx.currentTime, 0.05);
+    this._master.gain.setTargetAtTime(this._level(), this.ctx.currentTime, 0.05);
     if (this.enabled) this.ctx.resume?.();
     else setTimeout(() => { if (!this.enabled) this.ctx.suspend?.(); }, 300);   // after the fade, stop using the CPU
   }
 
   setVolume(v) {
     this.volume = clamp(v, 0, 1);
-    if (this.ctx && this.enabled) this._master.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.05);
+    if (this.ctx && this.enabled) this._master.gain.setTargetAtTime(this._level(), this.ctx.currentTime, 0.05);
+  }
+
+  /** Silence everything while the game is paused (and bring it back after). */
+  setPaused(on) {
+    this.paused = !!on;
+    if (this.ctx && this.enabled) this._master.gain.setTargetAtTime(this._level(), this.ctx.currentTime, 0.05);
+  }
+
+  _level() {
+    return this.enabled && !this.paused ? this.volume : 0;
   }
 
   dispose() {
@@ -221,7 +232,7 @@ export class AudioManager {
   _build() {
     const ctx = this.ctx;
     this._master = ctx.createGain();
-    this._master.gain.value = this.enabled ? this.volume : 0;
+    this._master.gain.value = this._level();
     this._master.connect(ctx.destination);
 
     // one second of white noise, shared by every noise source

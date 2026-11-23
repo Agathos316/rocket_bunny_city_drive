@@ -1,7 +1,7 @@
 // Integration tests: the whole game running headless (no GPU, no real DOM).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { installDom, fakeRenderer, fakeInput } from './helpers/dom.mjs';
+import { installDom, fakeRenderer, fakeInput, fakeGarage } from './helpers/dom.mjs';
 import { recordingAudio } from './helpers/audio.mjs';
 
 const dom = installDom();   // must happen before the game's modules are imported
@@ -30,7 +30,9 @@ function makeGame({ traffic } = {}) {
   dom.elements.clear();   // fresh UI elements, so listeners from earlier games in this file cannot fire
   const input = fakeInput();
   const audio = recordingAudio();
-  const game = new Game({ renderer: fakeRenderer(), input, audio, makeReflection: () => null });
+  const garage = fakeGarage();
+  const game = new Game({ renderer: fakeRenderer(), input, audio, makeReflection: () => null, garageView: garage });
+  game.garage = garage;
   if (traffic !== undefined) game.traffic.setCount(traffic, game.player);
   return { game, input, audio };
 }
@@ -385,33 +387,72 @@ test('cars: every car in the library builds; only the Ferrari has a cockpit; tra
   assert.throws(() => makeCar('supra'), /not loaded/, 'there are no built-in cars to fall back on');
 });
 
+const key = (game, code, repeat = false) => game.onKey({ code, repeat, preventDefault() {} });
+const pick = (game, name) => {            // choose a car the way a player does: Space, arrows to it, Space
+  key(game, 'Space');
+  for (let guard = 0; game.selector.current !== name && guard < 20; guard++) key(game, 'ArrowRight');
+  key(game, 'Space');
+};
+
 test('camera: cars without a cockpit stay in the chase view, and switching to one leaves the cockpit view', () => {
-  const { game, input } = makeGame({ traffic: 0 });
-  game.onKey({ code: 'KeyC', repeat: false });
+  const { game } = makeGame({ traffic: 0 });
+  key(game, 'KeyC');
   assert.equal(game.chase.mode, 'cockpit', 'the Ferrari has a cockpit');
-  const select = dom.elements.get('car');
-  select.value = 'camry';
-  select.dispatch('change');
+  pick(game, 'camry');
+  assert.equal(game.player.model, 'camry');
   assert.equal(game.chase.mode, 'chase', 'choosing a car without a cockpit leaves the cockpit view');
-  game.onKey({ code: 'KeyC', repeat: false });
+  key(game, 'KeyC');
   assert.equal(game.chase.mode, 'chase', 'C does nothing in a car without a cockpit');
   run(game, 0.2);
-  select.value = 'ferrari';
-  select.dispatch('change');
-  game.onKey({ code: 'KeyC', repeat: false });
+  pick(game, 'ferrari');
+  key(game, 'KeyC');
   assert.equal(game.chase.mode, 'cockpit');
 });
 
-test('settings: choosing a car swaps the player model', () => {
-  const { game } = makeGame();
-  const before = game.player.car.root;
-  const select = dom.elements.get('car');
-  select.value = 'tesla';
-  select.dispatch('change');
-  assert.equal(game.player.model, 'tesla');
+test('car selector: Space opens it, arrows cycle the carousel, Space chooses, Esc cancels, and the game is paused meanwhile', () => {
+  const { game, input, audio } = makeGame({ traffic: 0 });
+  const before = game.player.car.root, names = Object.keys(CAR.library.cars);
+  input.value.throttle = 1;
+  run(game, 0.5);
+  const x0 = game.player.x, z0 = game.player.z;
+
+  key(game, 'Space');
+  assert.equal(game.selector.isOpen, true);
+  assert.equal(game.garage.calls[0][0], 'show');
+  assert.equal(game.garage.calls[0][1], 'ferrari', 'starts on the current car');
+  assert.equal(audio.paused, true, 'sound is paused');
+  run(game, 1);
+  assert.equal(game.player.x, x0); assert.equal(game.player.z, z0, 'the game is frozen while the selector is open');
+
+  key(game, 'ArrowRight');
+  assert.equal(game.selector.current, names[1]);
+  key(game, 'ArrowLeft'); key(game, 'ArrowLeft');
+  assert.equal(game.selector.current, names.at(-1), 'wraps round to the last car');
+  assert.deepEqual(game.garage.calls.at(-1).slice(0, 2), ['showCar', names.at(-1)]);
+  key(game, 'ArrowRight');
+  key(game, 'KeyC');
+  assert.equal(game.chase.mode, 'chase', 'C does nothing while choosing');
+
+  key(game, 'Escape');
+  assert.equal(game.selector.isOpen, false);
+  assert.equal(game.player.model, 'ferrari', 'Esc keeps the current car');
+  assert.equal(audio.paused, false);
+  assert.equal(game.player.car.root, before);
+
+  key(game, 'Space');
+  key(game, 'ArrowRight');
+  key(game, 'Space', true);                                   // a held key does not toggle
+  assert.equal(game.selector.isOpen, true);
+  key(game, 'Space');
+  assert.equal(game.selector.isOpen, false);
+  assert.equal(game.player.model, names[1], 'the car on show is chosen');
   assert.notEqual(game.player.car.root, before);
   assert.equal(game.scene.children.includes(before), false);
   assert.equal(game.scene.children.includes(game.player.car.root), true);
+  assert.equal(dom.elements.get('carname').textContent, CAR.library.cars[names[1]].label, 'the settings panel names the car');
+  assert.equal(audio.voice, names[1], 'the engine voice follows');
+  run(game, 0.3);
+  assert.ok(game.player.x !== x0 || game.player.z !== z0, 'driving resumes');
 });
 
 test('settings: the cog opens and closes the panel', () => {
