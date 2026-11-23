@@ -13,7 +13,7 @@ import { rng } from '../util/math.js';
 import { Batcher } from '../util/batcher.js';
 import { getAssets } from '../assets.js';
 import { getGeoms } from './geometries.js';
-import { bridgeY, isHwy, isRiver, isStn, roadStyle } from './zones.js';
+import { Hr, bridgeY, isHwy, isRiver, isStn, roadAt, roadStyle } from './zones.js';
 import { ribbon } from './surfaces.js';
 import { buildStation } from './station.js';
 import { putParkedCar } from '../vehicles/parkedCars.js';
@@ -59,6 +59,29 @@ export function generateCity(i, j, { signals }) {
     if (style < 2) { const p = at(0, 0); put(G.dashLine, mats.dashLine, p[0], 0.03, p[1], 1, 1, 1, ry); }
     if (style === 2) for (const l of [-0.35, 0.35]) { const p = at(0, l); put(G.solidLine, mats.yellowLine, p[0], 0.03, p[1], 1, 1, 1, ry); }
     if (style === 1) for (const l of [-7.3, 7.3]) { const p = at(0, l); put(G.solidLine, mats.whiteLine, p[0], 0.03, p[1], 1, 1, 1, ry); }
+  }
+
+  /* ---- perimeter roads: a real road (surface, centre dashes, junction patches) on every edge shared with a highway cell,
+          so the city is ringed by proper roads and highways that arrive at it meet a proper intersection ---- */
+  {
+    const addRoad = (X, ox, oz) => {              // X = runs along x; (ox, oz) = start of the road line
+      for (const [geo, mat] of [[ribbon(X, ox, oz, 0, C, RD, 0.1), mats.highway], [ribbon(X, ox, oz, 8, C - 8, 0.17, 0.14), mats.dashLine]]) {
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.receiveShadow = true;
+        group.add(mesh);
+        owned.push(geo);
+      }
+      for (const t of [0, C]) {                   // junction patch at both ends
+        const px = X ? ox + t : ox, pz = X ? oz : oz + t;
+        put(G.junction, mats.highway, px, Hr(px, pz) + 0.1, pz);
+      }
+    };
+    if (!river) {
+      if (isHwy(i - 1, j)) addRoad(false, x0, z0);                 // west edge
+      if (isHwy(i + 1, j) && !roadAt(i + 1, j, 'z')) addRoad(false, x0 + C, z0);   // east edge (the highway cell draws its own if it has a road there)
+    }
+    if (isHwy(i, j - 1)) addRoad(true, x0, z0);                    // south edge
+    if (isHwy(i, j + 1) && !roadAt(i, j + 1, 'x')) addRoad(true, x0, z0 + C);    // north edge
   }
 
   /* ---- traffic lights: four corner poles, each with a head facing each approach ---- */

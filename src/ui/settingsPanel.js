@@ -11,6 +11,7 @@ export class SettingsPanel {
    * @param {(volume:number)=>void} opts.onVolume  called when the volume slider moves (0..1)
    */
   constructor({ onTraffic, onCar, onSound, onVolume, doc = document }) {
+    this.doc = doc;
     this.cog = doc.getElementById('cog');
     this.panel = doc.getElementById('set');
     this.carSelect = doc.getElementById('car');
@@ -48,6 +49,15 @@ export class SettingsPanel {
   setSound(on, volume) {
     this.soundBox.checked = on;
     this.volume.value = Math.round(volume * 100);
+  }
+
+  /** Offer a car that became available after the page loaded (a glTF model). */
+  addCar(model, label) {
+    if ([...this.carSelect.options].some((o) => o.value === model)) return;
+    const option = this.doc.createElement('option');
+    option.value = model;
+    option.textContent = label;
+    this.carSelect.insertBefore(option, this.carSelect.firstChild);
   }
 
   setCar(model) {

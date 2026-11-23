@@ -108,5 +108,6 @@ export class PlayerCar {
     const spinStep = this.v * dt / (CAR.wheelRadius * CAR.scale);
     for (const w of spin) w.rotation.x += spinStep;
     for (const f of front) f.rotation.y = this.steer * 0.45;
+    this.car.setSteer?.(this.steer);
   }
 }

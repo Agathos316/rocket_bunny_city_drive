@@ -2,11 +2,13 @@
  * Builds a car: body shell, glass, roof, Rocket Bunny widebody kit, model-specific details and four wheels.
  * Static parts are merged into a handful of meshes; wheels stay separate so they can spin and steer.
  *
- * makeCar() returns { root, tilt, spin, front }:
+ * makeCar() returns { root, tilt, spin, front, eye, setSteer }:
  *   root  - place and rotate this
  *   tilt  - body group; lean/pitch it for body roll
  *   spin  - wheel groups; rotate .x to spin
  *   front - front wheel pivots; rotate .y to steer
+ *   eye   - driver's eye in model units (cockpit camera); setSteer(x) turns the steering wheel, x = -1..1
+ * Models that have been loaded from glTF files (gltfCar.js) are used in place of the procedural ones.
  */
 import * as THREE from 'three';
 import { BufferGeometryUtils } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -14,6 +16,7 @@ import { CAR } from '../config.js';
 import { getAssets } from '../assets.js';
 import { getGeoms } from '../world/geometries.js';
 import { getCarGeometry } from './carModels.js';
+import { buildGltfCar, disposeGltfCar, hasGltfCar } from './gltfCar.js';
 
 /** Place a scaled copy of `geo` inside group `g`. */
 function part(g, geo, mat, sx, sy, sz, x, y, z, rx) {
@@ -60,6 +63,7 @@ const DETAILS = {
 };
 
 export function makeCar(color, detail, modelName = CAR.defaultModel) {
+  if (hasGltfCar(modelName)) return buildGltfCar(modelName, color);
   const { mats, car: M } = getAssets();
   const G = getGeoms();
   const { shared, models } = getCarGeometry();
@@ -113,6 +117,7 @@ export function makeCar(color, detail, modelName = CAR.defaultModel) {
     }
   }
 
+  part(tilt, G.box, M.dark, .05, .05, .3, .36, .85, D.bz + .72);                                                                   // steering column
   mergeStatic(tilt);
 
   // wheels stay as separate groups so they can spin and steer
@@ -132,7 +137,21 @@ export function makeCar(color, detail, modelName = CAR.defaultModel) {
       sp.add(tire, new THREE.Mesh(shared.rim, M.rim), new THREE.Mesh(shared.disc, M.dark));
     }
   }
-  return { root, tilt, spin, front };
+
+  // driver's seat: a steering wheel that turns, and the eye point for the cockpit camera
+  const wheelHub = new THREE.Group();
+  wheelHub.position.set(.36, .9, D.bz + .55);
+  wheelHub.rotation.x = -.45;                                // raked towards the driver
+  const wheelGeo = BufferGeometryUtils.mergeBufferGeometries([
+    new THREE.TorusGeometry(.17, .022, 8, 20).toNonIndexed(), new THREE.BoxGeometry(.3, .02, .02).toNonIndexed(),
+  ].map((g) => { g.deleteAttribute('uv'); return g; }));
+  const wheelMesh = new THREE.Mesh(wheelGeo, M.dark);
+  wheelMesh.userData.ownsGeometry = true;
+  wheelHub.add(wheelMesh);
+  tilt.add(wheelHub);
+  const setSteer = (steer) => { wheelHub.rotation.z = -steer * 1.9; };
+  const eye = new THREE.Vector3(.36, 1.12, D.bz - .12);
+  return { root, tilt, spin, front, eye, setSteer };
 }
 
 /** Merge all plain meshes under `tilt` into one mesh per material. */
@@ -162,5 +181,6 @@ function mergeStatic(tilt) {
 
 /** Free the geometry a car owns (merged body parts). Shared wheel geometry is left alone. */
 export function disposeCar(car) {
+  disposeGltfCar(car);
   car.root.traverse((o) => { if (o.isMesh && o.userData.ownsGeometry) o.geometry.dispose(); });
 }

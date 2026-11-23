@@ -3,6 +3,7 @@
 three.js **r128** (MIT licence, see `LICENSE`), copied unmodified from the `three@0.128.0` npm package:
 
 - `build/three.module.js`
+- `examples/jsm/loaders/GLTFLoader.js` and `DRACOLoader.js` (the `../../../build/three.module.js` import was changed to the bare `'three'`, the only edit) and `examples/jsm/libs/draco/gltf/` (the Draco decoder, from `examples/js/libs/draco/gltf/`)
 - `examples/jsm/utils/BufferGeometryUtils.js` (it imports the bare specifier `'three'`, which the import map in `index.html` and the Node test hook in `tests/` both resolve to `build/three.module.js`)
 
 The game is vendored rather than loaded from a CDN so it works offline and cannot break if a CDN changes.

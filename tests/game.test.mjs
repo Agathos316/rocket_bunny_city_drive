@@ -14,6 +14,7 @@ const { makeCar } = await import('../src/vehicles/carFactory.js');
 const { ChunkManager } = await import('../src/world/chunkManager.js');
 const { TrafficSignals: Signals } = await import('../src/world/signals.js');
 const THREE = await import('three');
+const { getAssets } = await import('../src/assets.js');
 
 const DT = 1 / 60;
 
@@ -28,7 +29,7 @@ function makeGame({ traffic } = {}) {
   dom.elements.clear();   // fresh UI elements, so listeners from earlier games in this file cannot fire
   const input = fakeInput();
   const audio = recordingAudio();
-  const game = new Game({ renderer: fakeRenderer(), input, audio, makeReflection: () => null });
+  const game = new Game({ renderer: fakeRenderer(), input, audio, makeReflection: () => null, loadModels: null });
   if (traffic !== undefined) game.traffic.setCount(traffic, game.player);
   return { game, input, audio };
 }
@@ -413,6 +414,52 @@ test('camera: stays above and behind the car', () => {
   assert.ok(behind > 3, `camera should be behind the car, but is ${behind} behind`);
   assert.ok(c.y > p.gys + 3, 'camera is above the car');
   assert.ok(Math.hypot(dx, dz) < 25);
+});
+
+test('camera: C switches to the cockpit view (the driver\'s eye, facing forward) and back', () => {
+  const { game, input } = makeGame({ traffic: 0 });
+  input.value.throttle = 1;
+  run(game, 1);
+  const p = game.player;
+  assert.equal(game.chase.mode, 'chase');
+  game.onKey({ code: 'KeyC', repeat: false });
+  assert.equal(game.chase.mode, 'cockpit');
+  run(game, 0.5);
+  const c = game.camera.position;
+  assert.ok(Math.hypot(c.x - p.x, c.z - p.z) < 2.5, 'the cockpit camera is inside the car');
+  assert.ok(c.y > p.gys + 0.8 && c.y < p.gys + 2.5, 'at driver eye height');
+  const look = game.camera.getWorldDirection(new THREE.Vector3());
+  assert.ok(look.x * Math.sin(p.h) + look.z * Math.cos(p.h) > 0.9, 'looking along the car\'s heading');
+  game.onKey({ code: 'KeyC', repeat: true });                      // key repeat must not flip it again
+  assert.equal(game.chase.mode, 'cockpit');
+  game.onKey({ code: 'KeyC', repeat: false });
+  assert.equal(game.chase.mode, 'chase');
+});
+
+test('cars: the steering wheel turns with the steering (every procedural model)', () => {
+  const { game, input } = makeGame({ traffic: 0 });
+  for (const model of CAR.models) {
+    game.player.setModel(model);
+    input.value.steer = 1;
+    run(game, 1);                                              // parked: no throttle, so nothing can crash and reset the steering
+    const wheel = game.player.car.tilt.children.find((o) => !o.isMesh && o.rotation.x === -0.45);   // the steering-wheel group
+    assert.ok(wheel && wheel.rotation.z < -1, `${model}: steering wheel should be turned left`);
+    assert.ok(game.player.car.eye, `${model}: has a cockpit eye point`);
+  }
+});
+
+test('city: every edge shared with a highway gets a real road (surface, dashes and junction patches)', () => {
+  const { game } = makeGame({ traffic: 0 });
+  placeAt(game, -5 * 100 + 50, -4 * 100 + 50);
+  game.chunks.update(game.player.gx, game.player.gz, Infinity);
+  const cell = game.chunks.get(-5, -4);                // west edge of the city borders highway cell (-6, -4)
+  const roads = [];
+  cell.group.traverse((o) => { if (o.isMesh && o.material === getAssets().mats.highway) roads.push(o); });
+  assert.ok(roads.length >= 2, `perimeter road ribbon + junction patches expected, got ${roads.length} meshes`);
+  const interior = game.chunks.get(-4, -4);            // an interior cell has no perimeter road
+  let interiorRoads = 0;
+  interior.group.traverse((o) => { if (o.isMesh && o.material === getAssets().mats.highway) interiorRoads++; });
+  assert.equal(interiorRoads, 0);
 });
 
 test('HUD: speed and money are displayed', () => {

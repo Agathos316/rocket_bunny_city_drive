@@ -45,7 +45,25 @@ export const CAR = {
   models: ['supra', 'mustang', 'porsche', 'gtr', 'civic'],
   trafficColors: [0x1e5fd6, 0xc8102e, 0x0b4ea2, 0xf4f4f2, 0x7d8087, 0xf7c600, 0x6cc4e8, 0xb30f1d, 0x1a1b1e, 0x2f7a48, 0xff7a00],
   parkedColors: [0x1e88ff, 0xe5173f, 0x7ad100, 0xf2f2f2, 0x8e3bff, 0xffd000, 0x00c2b0, 0xff4fa0, 0x2a2a2a, 0xff6a00],
-  blackRoofChance: 0.4,          // share of traffic cars with a black roof
+  blackRoofChance: 0.4,
+  preferredModel: 'ferrari',     // the player's car once its glTF model has loaded (falls back to defaultModel)
+  dracoPath: './vendor/three/examples/jsm/libs/draco/gltf/',
+  /**
+   * Cars loaded from glTF/GLB files. Coordinates are in the file's own units (metres); rotateY turns the model so its
+   * nose points +z; steerCentre/steerAxis place and aim the steering wheel; eye is the driver's eye (cockpit camera).
+   */
+  glbModels: {
+    ferrari: {
+      label: 'Ferrari 458 Italia',
+      url: './assets/models/ferrari.glb',
+      rotateY: Math.PI,
+      scale: 1,
+      steerCentre: [-0.35, 0.8, -0.35],
+      steerAxis: [0, 0.327, 0.945],
+      steerLock: 1.9,            // radians of wheel rotation at full lock
+      eye: [-0.35, 1.0, 0.1],
+    },
+  },          // share of traffic cars with a black roof
 };
 
 export const DRIVE = {
@@ -79,13 +97,15 @@ export const COLLISION = {
 };
 
 export const CAMERA = {
-  distance: 14,
-  height: 7.6,
-  lookAhead: 5,
-  lookHeight: 1.4,
+  distance: 8.5,                 // chase camera: behind and above the car
+  height: 3.6,
+  lookAhead: 6,
+  lookHeight: 1.5,
   followHeading: 4.5,            // how quickly the camera swings round behind the car
   followPosition: 12,
-  minAboveGround: 2.5,
+  minAboveGround: 1.6,
+  cockpitFov: 72,
+  cockpitNear: 0.1,
   fovSpeedGain: 0.28,
 };
 
@@ -129,6 +149,7 @@ export const KEYMAP = {
   brake: ['ArrowDown'],
   left: ['ArrowLeft'],
   right: ['ArrowRight'],
+  camera: ['KeyC'],             // switch between the chase camera and the cockpit view
 };
 
 /** Procedurally synthesised sound (Web Audio). No audio files are used. */

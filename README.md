@@ -27,9 +27,10 @@ Pages URL. Any static file server works too.
 | ↑ | Accelerate |
 | ↓ | Brake, then reverse |
 | ← → | Steer (combine freely with ↑ / ↓) |
+| C | Switch camera: chase view / cockpit view (the driver's eye, behind the steering wheel) |
 | ⚙ (bottom left) | Settings: choose your car, set the amount of traffic, sound on/off and volume |
 
-Cars: Toyota Supra, Ford Mustang, Porsche 911, Nissan GT-R, Honda Civic Type R — all with the Rocket Bunny kit.
+Cars: a Ferrari 458 Italia (a real 3D model with a modelled cockpit; the default once it has loaded), plus the built-in Toyota Supra, Ford Mustang, Porsche 911, Nissan GT-R and Honda Civic Type R with the Rocket Bunny kit. In the cockpit view the steering wheel turns with your steering. The cockpit is fully modelled only for the Ferrari; the built-in cars just get a simple wheel and no interior.
 
 ## Sound
 
@@ -49,6 +50,7 @@ checkbox and Volume slider are in the settings panel. Sound also pauses while th
 
 ## What is in the world
 
+- Perimeter roads: wherever a city block borders a highway ring it gets a real road (surface, centre dashes) with a proper junction where highway roads arrive.
 - Cities: bent (not ruler-straight) roads, four road styles, traffic lights, kerbside parking, speed bumps,
   petrol stations, rounded footpaths, rivers crossed by ramped bridges.
 - Highways: rolling hills, tunnels, bridges, interchanges, faster traffic. Highway rings alternate between green
@@ -67,20 +69,21 @@ src/
   game.js               Game: owns the systems below, runs the loop, decides what a crash means
   config.js             every tunable number (physics, traffic, camera, world size, car list, key map)
   input.js              InputManager: keyboard -> { throttle, brake, steer }; extra sources can be added
-  camera.js             ChaseCamera (above and behind the car)
+  camera.js             ChaseCamera: chase view and cockpit view (C)
   renderer.js           WebGL renderer setup
   environment.js        sky, sun + shadows, fog, ground
   assets.js             materials and procedural textures
   audio.js              AudioManager: procedural engine, road, ambience and impact sounds
   collisions.js         blocks, bumps, parked cars, traffic
-  vehicles/             car models (lofted shells), car factory, player car + physics, parked cars
+  vehicles/             car models (lofted shells), glTF cars (Ferrari), car factory, player car + physics, parked cars
   traffic/              TrafficManager: lanes, turns, following, traffic lights, recycling
   world/                zones (pure world-shape functions), cell generators, chunk streaming, signals
   ui/                   HUD and settings panel
   util/                 seeded RNG, maths, geometry Batcher
 tests/                  Node tests (zones, whole-game integration) + browser smoke test
 tools/serve.mjs         tiny static server used by `npm start` and the browser test
-vendor/three/           three.js r128 (ES module build + BufferGeometryUtils), MIT licensed
+vendor/three/           three.js r128 (ES module build, BufferGeometryUtils, GLTFLoader, DRACOLoader + decoder), MIT licensed
+assets/models/         glTF car models (see its README for sources and licences)
 ```
 
 ## How it works
@@ -115,7 +118,7 @@ npm test             # Node's built-in runner, no dependencies, ~15 s
 npm run test:browser # Playwright + headless Chromium smoke test (see below)
 ```
 
-`npm test` runs 59 tests:
+`npm test` runs 62 tests:
 
 - the pure world functions (zones, rivers, stations, heights, the warp and its inverse, terrain carved below roads);
 - the whole `Game` headless against a stub DOM and a fake renderer: boot, acceleration and money, up+left combining,

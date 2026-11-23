@@ -7,7 +7,7 @@
  * update(dt) advances the simulation without drawing, which is what the tests call.
  */
 import * as THREE from 'three';
-import { CAR, COLLISION, RENDER, START, TRAFFIC } from './config.js';
+import { CAR, COLLISION, KEYMAP, RENDER, START, TRAFFIC } from './config.js';
 import { createRenderer } from './renderer.js';
 import { createEnvironment } from './environment.js';
 import { InputManager } from './input.js';
@@ -20,6 +20,7 @@ import { TrafficManager } from './traffic/trafficManager.js';
 import { Hud } from './ui/hud.js';
 import { SettingsPanel } from './ui/settingsPanel.js';
 import { AudioManager } from './audio.js';
+import { hasGltfCar, loadGltfCars } from './vehicles/gltfCar.js';
 
 export class Game {
   /**
@@ -44,7 +45,7 @@ export class Game {
     this.audio = deps.audio || new AudioManager();
     this.settings = deps.settings || new SettingsPanel({
       onTraffic: (n) => this.traffic.setCount(n, this.player),
-      onCar: (model) => this.player.setModel(model),
+      onCar: (model) => { this.userPickedCar = true; this.player.setModel(model); },
       onSound: (on) => this.audio.setEnabled(on),
       onVolume: (v) => this.audio.setVolume(v),
       doc: document,
@@ -60,6 +61,8 @@ export class Game {
     this.frame = this.frame.bind(this);
     this.onResize = this.onResize.bind(this);
     this.onGesture = () => this.audio.unlock();   // browsers only allow sound after a key press or click
+    this.onKey = (e) => { if (!e.repeat && KEYMAP.camera.includes(e.code)) this.toggleCamera(); };
+    window.addEventListener('keydown', this.onKey);
     window.addEventListener('resize', this.onResize);
     window.addEventListener('keydown', this.onGesture);
     window.addEventListener('pointerdown', this.onGesture);
@@ -67,6 +70,25 @@ export class Game {
     this.chunks.update(this.player.gx, this.player.gz, Infinity);   // build the whole starting neighbourhood before the first frame
     this.traffic.setCount(TRAFFIC.defaultCount, this.player);
     this.chase.snapTo(this.player);
+
+    this.userPickedCar = false;
+    this.models = deps.loadModels === undefined ? loadGltfCars : deps.loadModels;   // glTF cars load in the background
+    this.modelsReady = this.models ? this.models((name) => this.onModelLoaded(name)).catch(() => []) : Promise.resolve([]);
+  }
+
+  /** A glTF car finished loading: offer it in the settings, and make it the player's car unless they already chose one. */
+  onModelLoaded(name) {
+    this.settings.addCar?.(name, CAR.glbModels[name]?.label || name);
+    if (name === CAR.preferredModel && !this.userPickedCar && hasGltfCar(name)) {
+      this.player.setModel(name);
+      this.settings.setCar?.(name);
+    }
+  }
+
+  /** Chase view <-> cockpit view. */
+  toggleCamera() {
+    const mode = this.chase.toggle(this.player);
+    return mode;
   }
 
   start() {
@@ -85,6 +107,7 @@ export class Game {
     this.stop();
     window.removeEventListener('resize', this.onResize);
     window.removeEventListener('keydown', this.onGesture);
+    window.removeEventListener('keydown', this.onKey);
     window.removeEventListener('pointerdown', this.onGesture);
     this.audio.dispose?.();
     this.input.dispose?.();
