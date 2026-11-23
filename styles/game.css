@@ -40,7 +40,7 @@ canvas{display:block}
 #garage-pip span{position:absolute;left:0;right:0;bottom:0;padding:3px 8px;font-size:11px;letter-spacing:.5px;text-transform:uppercase;background:rgba(14,18,26,.6)}
 #loading{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#070b16;transition:opacity .6s}
 #loading.done{opacity:0;pointer-events:none}
-#loading img{width:min(100vw,calc(100vh*16/9));max-height:88vh;object-fit:contain;display:block}
+#loading video{width:min(100vw,calc(100vh*16/9));max-height:88vh;object-fit:contain;display:block}
 #loading span{font-size:14px;letter-spacing:1px;opacity:.75}
 #loading-bar{width:min(320px,60vw);height:4px;border-radius:2px;background:rgba(255,255,255,.15);overflow:hidden}
 #loading-bar i{display:block;height:100%;width:40%;border-radius:2px;background:#ff6a00;animation:slide 1.1s ease-in-out infinite}
