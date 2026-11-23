@@ -17,7 +17,6 @@ import { Hr, bridgeY, isHwy, isRiver, isStn, roadAt, roadStyle } from './zones.j
 import { ribbon } from './surfaces.js';
 import { buildStation } from './station.js';
 import { getTrees } from './trees.js';
-import { putParkedCar } from '../vehicles/carLibrary.js';
 
 export function generateCity(i, j, { signals }) {
   const { mats, castsShadow } = getAssets();
@@ -101,7 +100,7 @@ export function generateCity(i, j, { signals }) {
     }
   }
 
-  /* ---- kerbside parking: marked bays in the strip beside each road, some with parked cars ---- */
+  /* ---- kerbside parking: marked bays in the strip beside each road, some with parked cars (the cars themselves are drawn by ParkedManager, near the player) ---- */
   for (const axis of [0, 1]) {
     for (const side of [-1, 1]) {
       // no bays on the side that faces a river, highway or petrol station (there's no kerb there)
@@ -116,7 +115,6 @@ export function generateCity(i, j, { signals }) {
         const p = at(24.25 + k * 8.5, 10.5), f = rand() < 0.5 ? 1 : -1;
         const hx = axis ? 0 : f, hz = axis ? f : 0;
         rand(); rand();   // (two draws that used to pick a model and colour; kept so the city layout does not change)
-        putParkedCar(batch, p[0], p[1], axis ? (f > 0 ? 0 : Math.PI) : (f > 0 ? Math.PI / 2 : -Math.PI / 2));
         parked.push({ x: p[0], z: p[1], hx, hz });
       }
     }

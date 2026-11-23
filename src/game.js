@@ -17,6 +17,7 @@ import { TrafficSignals } from './world/signals.js';
 import { ChunkManager } from './world/chunkManager.js';
 import { PlayerCar } from './vehicles/playerCar.js';
 import { TrafficManager } from './traffic/trafficManager.js';
+import { ParkedManager } from './traffic/parkedManager.js';
 import { Hud } from './ui/hud.js';
 import { SettingsPanel } from './ui/settingsPanel.js';
 import { AudioManager } from './audio.js';
@@ -37,6 +38,7 @@ export class Game {
     this.chunks = new ChunkManager(this.scene, { signals: this.signals });
     this.player = new PlayerCar(this.scene);
     this.traffic = new TrafficManager(this.scene, { signals: this.signals });
+    this.parkedCars = new ParkedManager(this.scene, this.chunks);
     this.collisions = new Collisions(this.chunks);
     this.chase = new ChaseCamera(this.camera);
 
@@ -68,6 +70,7 @@ export class Game {
     window.addEventListener('pointerdown', this.onGesture);
 
     this.chunks.update(this.player.gx, this.player.gz, Infinity);   // build the whole starting neighbourhood before the first frame
+    this.parkedCars.refresh(this.player.gx, this.player.gz);
     this.traffic.setCount(TRAFFIC.defaultCount, this.player);
     this.chase.snapTo(this.player);
   }
@@ -122,6 +125,7 @@ export class Game {
     this.stepPlayer(dt, input);
     this.traffic.update(dt, this.player);
     this.chunks.update(this.player.gx, this.player.gz, RENDER.chunksPerFrame);
+    this.parkedCars.update(dt, this.player);
 
     const p = this.player;
     p.followGround(dt);

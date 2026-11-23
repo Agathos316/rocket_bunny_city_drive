@@ -30,7 +30,7 @@ Pages URL. Any static file server works too.
 | C | Switch camera: chase view / cockpit view (the driver's eye, behind the steering wheel) |
 | ⚙ (bottom left) | Settings: choose your car, set the amount of traffic, sound on/off and volume |
 
-Cars: every vehicle in the game is a 3D model loaded from `assets/models/` (nothing is built in code). You choose between a Ferrari 458 Italia (with a modelled cockpit whose steering wheel turns), a sports sedan, a sports hatchback, a race car and a future race car. Traffic and kerbside parked cars are ordinary cars (sedan, SUV, luxury SUV, taxi, van, delivery truck, police car) from the CC0 Kenney Car Kit. **C** switches between the chase view and the driver's view: the Ferrari's cockpit, or a bonnet-level view for the other cars.
+Cars: every vehicle in the game is a 3D model loaded from `assets/models/` (nothing is built in code). You choose between a Ferrari 458 Italia (with a modelled cockpit whose steering wheel turns), a sports sedan, a sports hatchback, a race car and a future race car (the last four from the CC0 Kenney Car Kit). Every car in traffic and parked at the kerb is a detailed Toyota Camry (CC BY 4.0, see `assets/models/README.md`) in a range of colours. It is about 21k triangles, so parked cars are drawn only for the slots nearest you (a pool of 28, `src/traffic/parkedManager.js`). **C** switches between the chase view and the driver's view: the Ferrari's cockpit, or a bonnet-level view for the other cars.
 
 ## Sound
 

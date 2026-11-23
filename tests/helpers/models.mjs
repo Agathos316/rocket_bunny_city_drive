@@ -41,9 +41,18 @@ export function fakeFerrari() {
   return scene;
 }
 
+/** A Camry stand-in: a body whose paint material has the real model's name, nose towards +z. */
+export function fakeCamry() {
+  const scene = new THREE.Group(), plain = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+  const paint = new THREE.MeshPhysicalMaterial({ color: 0xffffff });
+  paint.userData.isPaint = true;
+  scene.add(box(1.8, 0.8, 4.8, 0, 0.7, 0, 'body', paint), box(1.6, 0.5, 2.4, 0, 1.3, -0.3, 'cabin', plain));
+  return scene;
+}
+
 export async function registerFakeCars() {
   const { registerCar } = await import('../../src/vehicles/carLibrary.js');
   const { CAR } = await import('../../src/config.js');
   for (const [name, spec] of Object.entries(CAR.library.player)) registerCar(name, spec.kind === 'ferrari' ? fakeFerrari() : fakeKenney());
-  for (const name of CAR.library.traffic) registerCar(name, fakeKenney());
+  registerCar('camry', fakeCamry());
 }

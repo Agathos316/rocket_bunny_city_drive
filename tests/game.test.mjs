@@ -373,7 +373,8 @@ test('cars: every player model builds with four spinning wheels, two steering, a
     assert.equal(car.front.length, 2, `${model}: front wheels`);
     assert.ok(car.wheelR > 0.3 && car.eye && typeof car.setSteer === 'function', `${model}: wheel radius, eye, setSteer`);
   }
-  for (let i = 0; i < 14; i++) assert.equal(makeTrafficCar(i).spin.length, 4);
+  const camry = makeTrafficCar(0xc8102e);
+  assert.ok(camry.root && typeof camry.paint === 'function', 'traffic and parked cars are Camrys with their own paint');
   assert.throws(() => makeCar('supra'), /not loaded/, 'there are no built-in cars to fall back on');
 });
 
@@ -455,6 +456,25 @@ test('city: every edge shared with a highway gets a real road (surface, dashes a
   let interiorRoads = 0;
   interior.group.traverse((o) => { if (o.isMesh && o.material === getAssets().mats.highway) interiorRoads++; });
   assert.equal(interiorRoads, 0);
+});
+
+test('parked cars: a pool of Camrys follows the player and sits in the recorded parking slots', async () => {
+  const { game } = makeGame({ traffic: 0 });
+  const pm = game.parkedCars, { PARKED } = await import('../src/config.js');
+  assert.ok(pm.active > 0 && pm.active <= PARKED.count, `${pm.active} parked cars near the start`);
+  const slots = [...game.chunks.parked.values()].flat();
+  for (const p of pm.pool.filter((q) => q.slot)) {
+    const [cell, n] = p.slot.split(':');
+    const s = game.chunks.parked.get(cell)[n];
+    const [wx, wz] = toWorld(s.x, s.z);
+    assert.ok(Math.hypot(p.car.root.position.x - wx, p.car.root.position.z - wz) < 0.01, 'car is on its slot');
+    assert.ok(p.car.root.visible);
+  }
+  assert.ok(slots.length > pm.active, 'only the slots nearest the player have cars');
+  placeAt(game, 3000, 3000);                                       // far away: nothing is near, so nothing is parked
+  game.chunks.update(game.player.gx, game.player.gz, Infinity);
+  pm.refresh(game.player.gx, game.player.gz);
+  assert.ok(pm.active <= PARKED.count && pm.pool.every((p) => !p.slot || game.chunks.parked.has(p.slot.split(':')[0])), 'slots follow the player');
 });
 
 test('HUD: speed and money are displayed', () => {

@@ -46,12 +46,11 @@ export const CAR = {
   /**
    * Every vehicle in the game is a glTF model from this library (nothing is built in code). See assets/models/README.md.
    * player: the cars you can choose. `kind: 'ferrari'` has a modelled cockpit; the others get a bonnet-level camera
-   * (`eye`, in model units). traffic / parked: the models used for cars driving and parked around the world.
+   * (`eye`, in model units). camry: the model used for every car in traffic and parked at the kerb.
    */
   library: {
     dracoPath: './vendor/three/examples/jsm/libs/draco/gltf/',
-    kenneyDir: './assets/models/kenney/',
-    kenneyScale: 2.5,            // Kenney Car Kit model units -> world units (driven, traffic and parked cars)
+    kenneyScale: 2.5,            // Kenney Car Kit model units -> world units (the drivable Kenney cars)
     // Kenney cars are chunky cartoons; these bring them nearer a real car's proportions (and the Ferrari's):
     proportions: { width: 0.8, height: 0.7, wheel: 0.69 },   // body width and height factors, and wheel size factor
     player: {
@@ -67,9 +66,20 @@ export const CAR = {
       race: { label: 'Race car', kind: 'kenney', url: './assets/models/kenney/race.glb', eye: [0, 0.85, 0.2] },
       'race-future': { label: 'Future race car', kind: 'kenney', url: './assets/models/kenney/race-future.glb', eye: [0, 0.85, 0.2] },
     },
-    traffic: ['sedan', 'suv', 'taxi', 'van', 'suv-luxury', 'delivery', 'police'],
-    parked: ['sedan', 'suv', 'taxi', 'van', 'suv-luxury'],     // not the delivery truck (too long for a bay) or the police car
+    /**
+     * Toyota Camry (2020), the car in traffic and parked at the kerb. About 21k triangles, so only a few dozen are ever
+     * on screen: traffic cars, plus a pool of parked cars near the player (see traffic/parkedManager.js).
+     */
+    camry: { url: './assets/models/camry.glb', paintMaterial: 'Paint_Color' },
+    trafficColors: [0xe6e6e2, 0x15161a, 0x5a5d63, 0x62081a, 0x123c8f, 0x0b2f6b, 0x6e7076, 0x1f3a2c, 0x4a1212, 0xb0aa98, 0x2a2d33, 0x8a4a1a],   // deep colours: the bright sun and tone mapping wash paint out
   },
+};
+
+/** Parked cars are drawn for the slots nearest the player only (see traffic/parkedManager.js). */
+export const PARKED = {
+  count: 28,                     // cars in the pool (each is ~21k triangles)
+  radius: 150,                   // only slots within this many units of the player (grid units)
+  refreshSeconds: 0.25,
 };
 
 export const DRIVE = {

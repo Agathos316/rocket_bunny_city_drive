@@ -3,11 +3,12 @@
  * kerb, is a glTF model from the library in assets/models/ — nothing is built in code.
  *
  *   assets/models/ferrari.glb   Ferrari 458 Italia (three.js examples), with a modelled cockpit
- *   assets/models/kenney/*.glb  Kenney Car Kit (CC0): ordinary cars, sports cars and race cars
+ *   assets/models/kenney/*.glb  Kenney Car Kit (CC0): the sports and race cars you can drive
+ *   assets/models/camry.glb     Toyota Camry 2020 (CC BY 4.0): every car in traffic and parked at the kerb
  *
  * loadCarLibrary() must finish before the game starts (main.js awaits it; tests call registerCar with stand-ins).
  *
- * makeCar(name) and makeTrafficCar(i) return { root, tilt, spin, front, wheelR, eye, setSteer }:
+ * makeCar(name) and makeTrafficCar(color) return { root, tilt, spin, front, wheelR, eye, setSteer }:
  *   root  - place and rotate this          tilt  - body group (lean / pitch it for body roll)
  *   spin  - wheel groups; rotate .x        front - front wheel pivots; rotate .y to steer
  *   wheelR - wheel radius in world units   eye - driver's eye (cockpit / hood camera)   setSteer(x) - turn the steering wheel
@@ -15,7 +16,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import { BufferGeometryUtils } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CAR } from '../config.js';
 
 const library = new Map();    // name -> template scene (never modified after registration)
@@ -26,8 +26,6 @@ let kenneyMaterial = null;
 
 export const hasCar = (name) => library.has(name);
 export const registerCar = (name, scene) => { library.set(name, scene); };
-export const trafficNames = () => CAR.library.traffic.filter(hasCar);
-export const parkedNames = () => CAR.library.parked.filter(hasCar);
 export const playerNames = () => Object.keys(CAR.library.player).filter(hasCar);
 
 /** Load every model. Resolves to the names loaded; throws if any file is missing, since nothing can stand in for it. */
@@ -40,10 +38,7 @@ export async function loadCarLibrary() {
   for (const [name, spec] of Object.entries(CAR.library.player)) {
     jobs.push(loader.loadAsync(spec.url).then((gltf) => registerCar(name, spec.kind === 'ferrari' ? prepareFerrari(gltf.scene) : prepareKenney(gltf.scene))));
   }
-  for (const name of CAR.library.traffic) {
-    if (hasCar(name) || CAR.library.player[name]) continue;
-    jobs.push(loader.loadAsync(CAR.library.kenneyDir + name + '.glb').then((gltf) => registerCar(name, prepareKenney(gltf.scene))));
-  }
+  jobs.push(loader.loadAsync(CAR.library.camry.url).then((gltf) => registerCar('camry', prepareCamry(gltf.scene))));
   try { await Promise.all(jobs); } finally { draco.dispose(); }
   return [...library.keys()];
 }
@@ -83,6 +78,24 @@ function prepareKenney(scene) {
       kenneyMaterial.envMapIntensity = 0.4;
     }
     o.material = kenneyMaterial;
+    o.castShadow = true;
+    o.frustumCulled = false;
+  });
+  return scene;
+}
+
+/** Camry: clear-coated paint (recoloured per car) and gentler reflections on everything else. The file is in metres, nose towards +z. */
+function prepareCamry(scene) {
+  const paint = CAR.library.camry.paintMaterial;
+  scene.traverse((o) => {
+    if (!o.isMesh) return;
+    if (o.material.name === paint) {
+      o.material = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0.25, roughness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.08, envMapIntensity: 0.55 });
+      o.material.userData.isPaint = true;
+      o.geometry.computeVertexNormals();      // the file's paint panels were mesh-reduced, which leaves their normals lumpy
+    } else {
+      o.material.envMapIntensity = 0.7;
+    }
     o.castShadow = true;
     o.frustumCulled = false;
   });
@@ -196,53 +209,27 @@ export function makeCar(name) {
   return spec.kind === 'ferrari' ? buildFerrari(spec) : buildKenney(name, CAR.library.kenneyScale, spec.eye);
 }
 
-/** A traffic car; `index` picks the body style, so traffic is a mix of sedans, SUVs, taxis, vans... */
-export function makeTrafficCar(index) {
-  const names = trafficNames();
-  if (!names.length) throw new Error('No traffic car models are loaded');
-  return buildKenney(names[index % names.length], CAR.library.kenneyScale, [0, 0.9, 0.2]);
+/**
+ * A Camry for traffic or parking, painted `color`. The wheels are part of one merged mesh in the file, so they do not spin.
+ * Materials are shared except the paint, which is the car's own.
+ */
+export function makeTrafficCar(color) {
+  if (!hasCar('camry')) throw new Error('The Camry model is not loaded');
+  const scene = library.get('camry').clone(true);
+  scene.traverse((o) => {
+    if (!o.isMesh || !o.material.userData.isPaint) return;
+    o.material = o.material.clone();
+    o.material.userData.owned = true;
+    o.material.color.set(color);
+  });
+  const root = new THREE.Group(), tilt = new THREE.Group();
+  tilt.add(scene);
+  root.add(tilt);
+  root.scale.setScalar(CAR.scale);
+  return { root, tilt, spin: [], front: [], wheelR: 0.33 * CAR.scale, eye: new THREE.Vector3(0, 1.1, 0), setSteer() {}, paint: (c) => scene.traverse((o) => { if (o.isMesh && o.material.userData.owned) o.material.color.set(c); }) };
 }
 
 /** Free the per-car paint (the shared templates' geometry and materials stay). */
 export function disposeCar(car) {
   car.root.traverse((o) => { if (o.isMesh && o.material.userData.owned) o.material.dispose(); });
-}
-
-/* ------------------------------------------------------------------ parked cars */
-
-const parkedGeo = new Map();
-export const parkedMaterial = () => kenneyMaterial || library.get(parkedNames()[0]).children.find((o) => o.isMesh)?.material;
-
-/**
- * One merged geometry for a parked car of the given model: body and wheels with their node transforms baked in,
- * scaled to world units, nose towards +z. Indexed, with position, normal and uv only, so it batches into a cell.
- */
-export function getParkedGeometry(name) {
-  if (parkedGeo.has(name)) return parkedGeo.get(name);
-  const scene = library.get(name), scale = CAR.library.kenneyScale;
-  scene.updateMatrixWorld(true);
-  const parts = [];
-  scene.traverse((o) => {
-    if (!o.isMesh) return;
-    const g = new THREE.BufferGeometry();
-    for (const a of ['position', 'normal', 'uv']) g.setAttribute(a, o.geometry.attributes[a].clone());
-    g.setIndex(o.geometry.index.clone());
-    g.applyMatrix4(o.matrixWorld);
-    g.scale(scale, scale, scale);
-    parts.push(g);
-  });
-  const merged = BufferGeometryUtils.mergeBufferGeometries(parts);
-  parts.forEach((g) => g.dispose());
-  parkedGeo.set(name, merged);
-  return merged;
-}
-
-const _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1);
-
-/** Add a parked car to a Batcher at grid position (x, z) facing `ry`. The model is picked by position, so a kerb has a mix. */
-export function putParkedCar(batcher, x, z, ry) {
-  const names = parkedNames();
-  const pick = names[Math.abs(Math.floor(x * 7 + z * 13)) % names.length];
-  _m.compose(_p.set(x, 0, z), _q.setFromAxisAngle(Y, ry), _s);
-  batcher.add(parkedMaterial(), getParkedGeometry(pick).clone().applyMatrix4(_m));
 }
