@@ -203,8 +203,9 @@ test('voices: every car has an engine voice, and the voices really differ', () =
   assert.equal(engineModel(40, 1, voiceFor('camry')).gear === engineModel(40, 1, voiceFor('mustang')).gear, false, 'different gearboxes');
 });
 
-test('voices: the electric car has no gear shifts, is silent when stopped and whines with speed', () => {
-  const ev = voiceFor('tesla');
+test('voices: an electric voice has no gear shifts, is silent when stopped and whines with speed', () => {
+  SOUNDS.testEv = { ev: true, wave1: 'sine', wave2: 'sine', waveSub: 'sine', idleHz: 60, rangeHz: 80, gearSpeeds: [0, 58], detune: 1.0, mix: [0.3, 0.1, 0.3], gain: 0.35, road: 1.6, whine: { base: 230, perSpeed: 44, gain: 0.012 } };
+  const ev = voiceFor('testEv');
   let last = 0;
   for (let v = 0; v <= 58; v += 0.5) {
     const f = engineModel(v, 1, ev).freq;
@@ -212,7 +213,7 @@ test('voices: the electric car has no gear shifts, is silent when stopped and wh
     last = f;
   }
   const { audio } = make();
-  audio.setVoice('tesla');
+  audio.setVoice('testEv');
   audio.unlock();
   audio.update(0.016, state({ speed: 0, throttle: 0 }));
   assert.equal(audio._engine.whineGain.gain.value, 0, 'no whine when stopped');
@@ -223,6 +224,7 @@ test('voices: the electric car has no gear shifts, is silent when stopped and wh
   audio.update(0.016, state({ speed: 45, throttle: 1 }));
   assert.ok(audio._engine.whine.frequency.value > w20, 'whine rises with speed');
   assert.equal(audio._engine.saw1.type, 'sine', 'a smooth tone, not a sawtooth engine');
+  delete SOUNDS.testEv;
 });
 
 test('voices: switching car changes the engine at once, before or after the audio context exists', () => {
@@ -255,6 +257,3 @@ test('pause: the car selector silences the game without touching the Sound setti
   assert.equal(level(), 0, 'muted stays muted');
 });
 
-test('voices: the Tesla whine is quiet (a tenth of what it was)', () => {
-  assert.ok(voiceFor('tesla').whine.gain <= 0.02);
-});

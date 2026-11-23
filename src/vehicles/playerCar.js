@@ -7,7 +7,7 @@
 import { CAR, DRIVE, START } from '../config.js';
 import { clamp } from '../util/math.js';
 import { sgrid, toGrid, toWorld, worldHeading } from '../world/zones.js';
-import { disposeCar, hasCockpit, makeCar } from './carLibrary.js';
+import { disposeCar, hasCockpit, hasShowroom, loadShowroom, makeCar } from './carLibrary.js';
 
 /** Start pose in world space: the grid start point, bent by the world warp. */
 export function startPose() {
@@ -21,8 +21,7 @@ export class PlayerCar {
     this.start = startPose();
     this.model = CAR.defaultModel;
     this.reset();
-    this.car = makeCar(this.model);
-    scene.add(this.car.root);
+    this.install(this.model);
   }
 
   /** Back to the start line, standing still, with no money. */
@@ -54,8 +53,28 @@ export class PlayerCar {
     this.scene.remove(this.car.root);
     disposeCar(this.car);
     this.model = name;
+    this.install(name);
+  }
+
+  /**
+   * Build the mesh for `name` and add it to the scene. The player's own car uses the detailed showroom model: it
+   * is mostly seen from behind and close up. If that has not been loaded yet (the car was never shown in the car selector),
+   * the normal model is used meanwhile and the detailed one replaces it when it arrives.
+   */
+  install(name) {
     this.car = makeCar(name);
     this.scene.add(this.car.root);
+    if (!CAR.library.cars[name].showroom || hasShowroom(name)) return;
+    loadShowroom(name).then((ok) => {
+      if (!ok || this.model !== name || !hasShowroom(name)) return;
+      const old = this.car;
+      this.car = makeCar(name);
+      this.car.root.position.copy(old.root.position);
+      this.car.root.rotation.copy(old.root.rotation);
+      this.scene.remove(old.root);
+      disposeCar(old);
+      this.scene.add(this.car.root);
+    });
   }
 
   /** Throttle, brake and steering for one step. `input` is { throttle, brake, steer } from the input manager. */

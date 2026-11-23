@@ -377,7 +377,7 @@ test('cars: every car in the library builds; only the Ferrari has a cockpit; tra
     car.root.traverse((o) => { if (o.name.startsWith('LOD')) levels++; });
     assert.ok(model === 'ferrari' || model === 'mustang' || levels === 1, `${model}: the player's car uses only the best detail level (${levels})`);
   }
-  assert.ok(trafficNames().length >= 5, 'a mix of traffic models');
+  assert.ok(trafficNames().length >= 4, 'a mix of traffic models');
   assert.ok(!trafficNames().includes('ferrari') && !trafficNames().includes('mustang') && !trafficNames().includes('nissan'), 'sports and vintage cars are not in traffic');
   const t = makeTrafficCar(0, 0xc8102e);
   let lod = null;

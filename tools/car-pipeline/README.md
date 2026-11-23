@@ -9,7 +9,7 @@ needed to run it**; the results are in `assets/models/cars/`. They need Node and
 node prep.mjs      in.glb stage1.glb [textureSize]   # decode Draco, flatten and join meshes, drop unsupported extensions, shrink textures
 node lods.mjs      stage1.glb out.glb length rotateYdeg lod0Tris lod1Tris lod2Tris
                                                      # centre, ground, rotate the nose to +z, scale to `length` metres, build LOD0..LOD2
-node lods_t.mjs    ...same arguments...              # stricter reduction (locks mesh borders); used for the Tesla, whose textures tore otherwise
+node lods_t.mjs    ...same arguments...              # stricter reduction (locks mesh borders); used for the (since removed) Tesla, whose textures tore otherwise
 node draco.mjs     out.glb final.glb                 # Draco-compress the geometry
 node prep.mjs      in.glb stage1.glb 1024 webp         # (the showroom models: bigger textures, WebP)
 ONLY_LOD0=1 node lods.mjs ... 150000 1 1              # (the showroom models: one detailed level, 100-170k triangles)
@@ -23,5 +23,4 @@ the first version had (it used a blunt "sloppy" fallback and kept the lumpy norm
 Textured parts use an attribute-aware reduction.
 
 Settings used: LOD0 about 20-50k triangles, LOD1 about 7-12k, LOD2 about 2k (the farthest level uses a blunt
-reduction, which is noisy up close but invisible at distance). The Tesla needed `lods_t.mjs` and a 180 degree turn.
-The Camry, Audi, BMW and Golf were 4.7 m long, the Nissan 4.7 m; see `assets/models/README.md` for sources.
+reduction, which is noisy up close but invisible at distance). The Camry, Audi, BMW and Golf were 4.7 m long, the Nissan 4.7 m; see `assets/models/README.md` for sources.

@@ -82,7 +82,6 @@ function prepareCar(scene, spec) {
       m.envMapIntensity = 0.7;
       if (m.transparent) m.depthWrite = false;
     }
-    if (spec.doubleSided) out.side = THREE.DoubleSide;
     swapped.set(m, out);
     return out;
   };
@@ -232,11 +231,11 @@ function buildCar(name, { lod, color, hi }) {
   return { root, tilt, spin: [], front: [], wheelR: 0.33 * CAR.scale, eye: null, setSteer() {}, paint };
 }
 
-/** The player's car: `name` is a key of CAR.library.cars. */
+/** The player's car: `name` is a key of CAR.library.cars. It uses the detailed showroom model once that has loaded (see loadShowroom). */
 export function makeCar(name) {
   const spec = specOf(name);
   if (!spec || !hasCar(name)) throw new Error(`Car model "${name}" is not loaded`);
-  return spec.kind === 'ferrari' ? buildFerrari(spec) : buildCar(name, { lod: false });
+  return spec.kind === 'ferrari' ? buildFerrari(spec) : buildCar(name, { lod: false, hi: showroom.has(name) });
 }
 
 /** A traffic or parked car: model `index` of the traffic models (cycling), painted `color`, with distance detail levels. */
@@ -247,13 +246,18 @@ export function makeTrafficCar(index, color) {
 }
 
 /**
- * The car selector shows cars much closer and larger than the game ever does, so each pipeline car has a far more
- * detailed `showroom` file (see CAR.library.cars). It is only fetched when the selector first shows that car.
+ * Each pipeline car has a far more detailed `showroom` file (see CAR.library.cars). It is what the car selector shows,
+ * and it is also the player's own car in the game (mostly seen from behind, so the detail is worth it). Traffic and parked
+ * cars keep the light normal models. It is only fetched when a car is first shown in the selector or chosen.
  * Resolves true once the detailed version is ready (false if the car has none, or it failed to load: the normal model stays).
  */
+let showroomEnabled = true;
+/** Tests turn this off: there are no files to fetch under Node. */
+export const setShowroomLoading = (on) => { showroomEnabled = on; };
+
 export function loadShowroom(name) {
   const spec = specOf(name);
-  if (!spec?.showroom) return Promise.resolve(false);
+  if (!showroomEnabled || !spec?.showroom) return Promise.resolve(false);
   if (showroom.has(name)) return Promise.resolve(true);
   if (!showroomLoading.has(name)) {
     const draco = new DRACOLoader();
@@ -271,9 +275,7 @@ export function loadShowroom(name) {
 export const hasShowroom = (name) => showroom.has(name);
 
 /** A car for the car selector: the detailed version if it has loaded, otherwise the normal player's model. */
-export function makeShowroomCar(name) {
-  return showroom.has(name) ? buildCar(name, { lod: false, hi: true }) : makeCar(name);
-}
+export const makeShowroomCar = (name) => makeCar(name);
 
 /** Free the per-car paint (the shared templates' geometry and other materials stay). */
 export function disposeCar(car) {

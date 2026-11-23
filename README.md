@@ -31,14 +31,14 @@ Pages URL. Any static file server works too.
 | C | Switch camera: chase view / cockpit view (the driver's eye, behind the steering wheel) |
 | ⚙ (bottom left) | Settings: the amount of traffic, sound on/off and volume |
 
-Cars: every vehicle in the game is a 3D model loaded from `assets/models/` (nothing is built in code; sources and licences are in that folder's README). You choose between a Ferrari 458 Italia (with a modelled cockpit whose steering wheel turns), a Nissan GT-R R35 Liberty Walk, a 1965 Ford Mustang Fastback, a Toyota Camry, a Tesla Model S, an Audi RS6 Avant, a BMW M4 and a Volkswagen Golf. Traffic and the kerbside parked cars are a mix of the Camry, Tesla, Audi, BMW and Golf in different colours. **C** switches between the chase view and the driver's view, which is available in the Ferrari only (the others stay in the chase view). Cars are drawn at three levels of detail by distance, so distant cars cost very little, and parked cars are drawn for the slots nearest you (a pool of 48, `src/traffic/parkedManager.js`).
+Cars: every vehicle in the game is a 3D model loaded from `assets/models/` (nothing is built in code; sources and licences are in that folder's README). You choose between a Ferrari 458 Italia (with a modelled cockpit whose steering wheel turns), a Nissan GT-R R35 Liberty Walk, a 1965 Ford Mustang Fastback, a Toyota Camry, an Audi RS6 Avant, a BMW M4 and a Volkswagen Golf. Traffic and the kerbside parked cars are a mix of the Camry, Audi, BMW and Golf in different colours. **C** switches between the chase view and the driver's view, which is available in the Ferrari only (the others stay in the chase view). Cars are drawn at three levels of detail by distance, so distant cars cost very little, and parked cars are drawn for the slots nearest you (a pool of 48, `src/traffic/parkedManager.js`).
 
 ## Sound
 
 All sound is synthesised live with the browser's Web Audio API (`src/audio.js`); there are no audio files and no
 dependencies.
 
-- **Engine:** pitch follows your speed through a gearbox (it climbs, then drops at each shift) and is duller when you lift off the throttle. **Each car has its own voice** (`SOUNDS` in `src/config.js`): the Mustang is a low, lumpy, loud V8 burble; the Nissan is beefy with a turbo whistle; the Ferrari revs highest and brightest; the Camry and Golf are gentle; the Audi and BMW sit in between; and the Tesla has no engine at all, just a rising electric whine, silent when stopped, with more tyre noise. The voice changes when you choose a different car.
+- **Engine:** pitch follows your speed through a gearbox (it climbs, then drops at each shift) and is duller when you lift off the throttle. **Each car has its own voice** (`SOUNDS` in `src/config.js`): the Mustang is a low, lumpy, loud V8 burble; the Nissan is beefy with a turbo whistle; the Ferrari revs highest and brightest; the Camry and Golf are gentle; the Audi and BMW sit in between. The voice changes when you choose a different car.
   duller when you lift off the throttle.
 - **Road and wind:** road noise and wind grow with speed and stop while you are airborne; tyres squeal when you
   corner or brake hard at speed.
@@ -120,7 +120,7 @@ npm test             # Node's built-in runner, no dependencies, ~15 s
 npm run test:browser # Playwright + headless Chromium smoke test (see below)
 ```
 
-`npm test` runs 70 tests:
+`npm test` runs 69 tests:
 
 - the pure world functions (zones, rivers, stations, heights, the warp and its inverse, terrain carved below roads);
 - the whole `Game` headless against a stub DOM and a fake renderer: boot, acceleration and money, up+left combining,

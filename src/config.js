@@ -45,7 +45,7 @@ export const CAR = {
   roadWheelLock: 0.5,
   /**
    * Every vehicle in the game is a glTF model from this library (nothing is built in code); see assets/models/README.md.
-   * Each entry is a car you can drive. `traffic: true` also puts it in traffic and at the kerb. `doubleSided` draws both faces of every triangle (for a file whose mirrored wheels are inside out). `paint` names the body-paint
+   * Each entry is a car you can drive. `traffic: true` also puts it in traffic and at the kerb. `paint` names the body-paint
    * material, which can be recoloured (traffic cars come in several colours). `cockpit` cars have a modelled interior,
    * so the C key switches to the driver's view; for the others C does nothing. Models built by tools/car-pipeline have
    * three detail levels (nodes LOD0..LOD2), nose towards +z, in metres. `showroom` is a much more detailed version
@@ -67,7 +67,6 @@ export const CAR = {
       nissan: { sound: 'nissan', label: 'Nissan GT-R R35 (Liberty Walk)', url: './assets/models/cars/nissan.glb', showroom: './assets/models/cars/hi/nissan.glb', paint: 'r35_paint' },
       mustang: { sound: 'mustang', label: 'Ford Mustang Fastback (1965)', url: './assets/models/cars/mustang.glb', raw: true, rotateY: Math.PI, scale: 0.82 },   // not from the pipeline: skinned, already in metres, nose towards -z,
       camry: { sound: 'camry', label: 'Toyota Camry', url: './assets/models/cars/camry.glb', showroom: './assets/models/cars/hi/camry.glb', paint: 'Paint_Color', traffic: true },
-      tesla: { sound: 'tesla', doubleSided: true, label: 'Tesla Model S', url: './assets/models/cars/tesla.glb', showroom: './assets/models/cars/hi/tesla.glb', paint: 'primary', traffic: true },
       audi: { sound: 'audi', label: 'Audi RS6 Avant', url: './assets/models/cars/audi.glb', showroom: './assets/models/cars/hi/audi.glb', paint: 'CarPrimaryColor', traffic: true },
       bmw: { sound: 'bmw', label: 'BMW M4', url: './assets/models/cars/bmw.glb', showroom: './assets/models/cars/hi/bmw.glb', traffic: true },
       golf: { sound: 'golf', label: 'Volkswagen Golf', url: './assets/models/cars/golf.glb', showroom: './assets/models/cars/hi/golf.glb', traffic: true },
@@ -189,7 +188,6 @@ export const SOUNDS = {
   golf: { wave2: 'square', idleHz: 50, rangeHz: 125, gearSpeeds: [0, 9, 19, 30, 43, 58], detune: 1.005, mix: [0.34, 0.14, 0.4], cutoffBase: 320, cutoffRange: 1400, resonance: 1.0, gain: 0.8 },
   audi: { idleHz: 40, rangeHz: 125, gearSpeeds: [0, 11, 22, 34, 46, 58], detune: 1.007, mix: [0.45, 0.35, 0.5], cutoffBase: 340, cutoffRange: 1700, resonance: 1.3, gain: 0.95 },
   bmw: { wave2: 'triangle', idleHz: 46, rangeHz: 145, gearSpeeds: [0, 11, 22, 34, 46, 58], detune: 1.004, mix: [0.45, 0.3, 0.4], cutoffBase: 420, cutoffRange: 1900, resonance: 1.2, gain: 0.9 },
-  tesla: { ev: true, wave1: 'sine', wave2: 'sine', waveSub: 'sine', idleHz: 60, rangeHz: 80, gearSpeeds: [0, 58], detune: 1.0, mix: [0.3, 0.1, 0.3], cutoffBase: 400, cutoffRange: 600, resonance: 0.5, gain: 0.35, road: 1.6, whine: { base: 230, perSpeed: 44, gain: 0.012 } }   // (the whine was far too loud at 0.17: now about 7% of that),
 };
 
 /** Procedurally synthesised sound (Web Audio). No audio files are used. */

@@ -3,7 +3,7 @@
  *
  *   engine     two detuned oscillators + a sub, pitch from a simple gearbox model of the speed; the shape, pitch range,
  *              gearbox, loudness and brightness come from the car's voice (SOUNDS in config.js: a V8 muscle car rumbles,
- *              a hatchback is gentle, the Ferrari revs high, the Tesla is an electric whine)
+ *              a hatchback is gentle, the Ferrari revs high; a voice can also be electric: a whine, silent when stopped)
  *   road/tyres filtered noise rising with speed; a squeal when cornering or braking hard
  *   wind       noise that grows with speed
  *   ambience   a bed per environment (city rumble, countryside wind + birds, desert wind), crossfaded
