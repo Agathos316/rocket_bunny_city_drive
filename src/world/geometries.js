@@ -50,6 +50,19 @@ function interchangeRamp() {
   return new THREE.ShapeGeometry(s, 16).rotateX(-Math.PI / 2);
 }
 
+/** A gable roof: 1 wide (x), 1 tall (y), 1 long (z); the ridge runs along z and the base sits at y = 0. */
+function gableRoof() {
+  const v = (x, y, z) => [x, y, z];
+  const a = v(-0.5, 0, -0.5), b = v(0.5, 0, -0.5), c = v(0, 1, -0.5), d = v(-0.5, 0, 0.5), e = v(0.5, 0, 0.5), f = v(0, 1, 0.5);
+  const tris = [[d, e, f], [b, a, c], [a, d, f], [a, f, c], [e, b, c], [e, c, f], [a, b, e], [a, e, d]];
+  const pos = tris.flat(2);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(new Array(pos.length / 3 * 2).fill(0), 2));
+  g.computeVertexNormals();
+  return g;
+}
+
 function buildGeoms() {
   const flat = (w, d, ws = 1, ds = 1) => new THREE.PlaneGeometry(w, d, ws, ds).rotateX(-Math.PI / 2);
   return {
@@ -71,5 +84,6 @@ function buildGeoms() {
     portal: tunnelPortal(),
     tunnel: new THREE.CylinderGeometry(1, 1, 5.4, 16, 1, true, Math.PI / 2, Math.PI).rotateX(Math.PI / 2).scale(11, 12, 1),
     interchangeRamp: interchangeRamp(),
+    gable: gableRoof(),
   };
 }

@@ -44,7 +44,7 @@ export class ChunkManager {
     warpGroup(built.group);
     this.scene.add(built.group);
     const key = ChunkManager.key(i, j);
-    this.cells.set(key, { i, j, group: built.group, owned: built.owned, bumps: built.bumps });
+    this.cells.set(key, { i, j, group: built.group, owned: built.owned, bumps: built.bumps, houses: built.houses || [] });
     if (built.parked) this.parked.set(key, built.parked);
   }
 

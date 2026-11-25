@@ -52,6 +52,36 @@ export class Collisions {
     return false;
   }
 
+  /** Push the car out of houses (solid boxes in grid space); same bounce as a city block. */
+  houses(p) {
+    const r = COLLISION.blockRadius;
+    for (let pass = 0; pass < 2; pass++) {
+      for (const [wx, wz] of capsulePoints(p.x, p.z, p.h, COLLISION.capsuleOffset)) {
+        const [cx, cz] = toGrid(wx, wz);
+        const ci = Math.floor(cx / C), cj = Math.floor(cz / C);
+        for (let a = -1; a <= 1; a++) {
+          for (let b = -1; b <= 1; b++) {
+            const cell = this.chunks.get(ci + a, cj + b);
+            if (!cell || !cell.houses.length) continue;
+            for (const h of cell.houses) {
+              const bx = cx - h.x, bz = cz - h.z, qx = Math.abs(bx) - h.hw, qz = Math.abs(bz) - h.hd;
+              const ox = Math.max(qx, 0), oz = Math.max(qz, 0);
+              const dist = Math.hypot(ox, oz) + Math.min(Math.max(qx, qz), 0);
+              if (dist >= r) continue;
+              let nx, nz;
+              if (ox > 0 || oz > 0) { const l = Math.hypot(ox, oz); nx = Math.sign(bx) * ox / l; nz = Math.sign(bz) * oz / l; }
+              else if (qx > qz) { nx = Math.sign(bx) || 1; nz = 0; }
+              else { nx = 0; nz = Math.sign(bz) || 1; }
+              p.x += nx * (r - dist);
+              p.z += nz * (r - dist);
+              p.v *= Math.abs(p.v) > 3 ? -COLLISION.blockBounce : 0.5;
+            }
+          }
+        }
+      }
+    }
+  }
+
   /** Speed bumps in the cells around the car. */
   bumps(p) {
     const [gx, gz] = toGrid(p.x, p.z);

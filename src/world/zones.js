@@ -31,6 +31,12 @@ export const isDesert = (i, j) => {
   return ((dom + Math.floor(Math.max(a, b) / ZONE_PERIOD)) & 1) === 1;
 };
 
+/**
+ * Towns: the last two highway rings of a green (not desert) stretch, so you drive out of the grassland into a town
+ * of one and two storey houses before the next city begins.
+ */
+export const isTown = (i, j) => isHwy(i, j) && !isDesert(i, j) && Math.max(Math.abs(i), Math.abs(j)) % ZONE_PERIOD >= ZONE_PERIOD - 2;
+
 /** Every fifth row of city blocks is a river. */
 export const isRiver = (i, j) => !isHwy(i, j) && mod(j, 5) === 2;
 

@@ -42,6 +42,21 @@ function windowTexture(wall, lit) {
   return repeatTexture(c, { anisotropy: 4 });
 }
 
+/** A house wall: a 5 m x 3.2 m tile (one storey) with a window, repeated across and up the wall. */
+function houseWallTexture(wall, trim) {
+  const c = canvas(64, 64, (g) => {
+    g.fillStyle = wall; g.fillRect(0, 0, 64, 64);
+    g.fillStyle = 'rgba(0,0,0,.07)'; g.fillRect(0, 60, 64, 4);               // a faint band where the storeys meet
+    g.fillStyle = trim; g.fillRect(19, 12, 26, 30);                          // window frame
+    g.fillStyle = '#8fb4d0'; g.fillRect(22, 15, 20, 24);                     // glass
+    g.fillStyle = trim; g.fillRect(31, 15, 2, 24); g.fillRect(22, 26, 20, 2);  // mullions
+    g.fillRect(17, 42, 30, 3);                                                // sill
+  });
+  return repeatTexture(c, { anisotropy: 4 });
+}
+
+const HOUSE_WALLS = [['#e8dcc4', '#ffffff'], ['#d9a679', '#f4efe6'], ['#c9d6c3', '#ffffff'], ['#b8c7d9', '#ffffff'], ['#e3b7a0', '#f6f1ea'], ['#f1e5a8', '#ffffff']];
+
 const BUILDING_STYLES = [
   ['#8d96a3', '#cfe6fb'], ['#b9a58c', '#e8f2fb'], ['#59616e', '#a9d0f2'],
   ['#a0584a', '#d6e9fa'], ['#7e9aa8', '#ffffff'], ['#444b57', '#8fbfe8'],
@@ -76,13 +91,15 @@ function buildAssets() {
     map: windowTexture(wall, lit), roughness: 0.4, metalness: 0.15, envMapIntensity: 0.8,
   }));
   const roof = lambert(0x7a7e84);
+  const houseWalls = HOUSE_WALLS.map(([wall, trim]) => lambert(0xffffff, { map: houseWallTexture(wall, trim) }));
+  const houseRoofs = [0x8a3b2e, 0x4a4f57, 0x6b4a36].map((c) => lambert(c));
   const trunk = lambert(0x5a4030);
   const tree = lambert(0xffffff, { vertexColors: true });   // vertex-coloured tree geometry (world/trees.js)
   const leaves = [0x3f7a35, 0x4e8f3a, 0x2f6a30].map((c) => lambert(c));
   const concrete = lambert(0xa5a7aa, { side: THREE.DoubleSide, emissive: 0x34363a });
   const canopy = lambert(0xd0242b);
   const mats = {
-    buildings, roof, trunk, leaves, tree, concrete, canopy,
+    buildings, roof, houseWalls, houseRoofs, houseDoor: lambert(0x4a2f1f), houseBase: lambert(0x8d8b86), chimney: lambert(0x7d4a3a), trunk, leaves, tree, concrete, canopy,
     footpath: lambert(0xc2beb4),
     ground: lambert(0xffffff, { map: asphalt }),
     highway: lambert(0x111214),
@@ -105,7 +122,7 @@ function buildAssets() {
   };
 
   /* Materials whose meshes cast shadows (flat ground detail does not). */
-  const castsShadow = new Set([roof, trunk, tree, ...leaves, ...buildings, concrete, canopy]);
+  const castsShadow = new Set([roof, trunk, tree, ...leaves, ...buildings, ...houseWalls, ...houseRoofs, concrete, canopy]);
 
   return { mats, castsShadow, textures: { asphalt } };
 }

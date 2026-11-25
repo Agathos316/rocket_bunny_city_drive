@@ -185,6 +185,7 @@ export class Game {
     p.drive(dt, input);
     const vIn = p.v;
     if (this.collisions.blocks(p)) return this.crash();      // off the bridge and into the river
+    this.collisions.houses(p);
     if (Math.abs(vIn) > 3 && Math.abs(vIn) - Math.abs(p.v) > 2) this.audio.thud(vIn);   // hit a building
     const vyBefore = p.vy;
     this.collisions.bumps(p);

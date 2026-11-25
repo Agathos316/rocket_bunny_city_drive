@@ -13,6 +13,7 @@ import { getGeoms } from './geometries.js';
 import { Fe, Gh, Hr, dzf, isDesert, roadAt } from './zones.js';
 import { ribbon, terrainGeometry } from './surfaces.js';
 import { getTrees } from './trees.js';
+import { buildTown, townHouses } from './town.js';
 
 export function generateHighway(i, j) {
   const { mats, castsShadow } = getAssets();
@@ -70,10 +71,16 @@ export function generateHighway(i, j) {
     for (let k = 0; k < 4; k++) put(G.interchangeRamp, mats.interchange, x0, 0, z0, 1, 1, 1, k * Math.PI / 2);
   }
 
+  // towns: houses (nothing is drawn or removed unless this is a town cell)
+  const houses = townHouses(i, j);
+  const nearHouse = (x, z) => houses.some((h) => Math.abs(x - h.x) < h.hw + 3 && Math.abs(z - h.z) < h.hd + 3);
+  buildTown(batch, houses);
+
   // scenery: trees and rocks, or cacti and rocks in the desert
   for (let n = 0; n < 10; n++) {
     const x = x0 + 20 + rand() * (C - 40), z = z0 + 20 + rand() * (C - 40), y = Gh(x, z);
     const s = 1.6 + rand() * 1.2, hh = 2.5 + rand() * 1.5;
+    if (houses.length && nearHouse(x, z)) { if (!desert) rand(); continue; }   // (keeps the draw order, so nothing else moves)
     if (desert) {
       if (n % 2) {
         put(G.cyl, mats.cactus, x, y + hh / 2, z, 0.45, hh, 0.45);
@@ -94,5 +101,5 @@ export function generateHighway(i, j) {
     for (let q = 0; q < p.count; q++) p.setY(q, Hr(p.getX(q), p.getZ(q)) + 0.07);
   });
 
-  return { group, owned, bumps: [], parked: null };
+  return { group, owned, bumps: [], parked: null, houses };
 }

@@ -54,6 +54,7 @@ checkbox and Volume slider are in the settings panel. Sound also pauses while th
 - Perimeter roads: wherever a city block borders a highway ring it gets a real road (surface, centre dashes) with a proper junction where highway roads arrive.
 - Cities: bent (not ruler-straight) roads, four road styles, traffic lights, kerbside parking, speed bumps,
   petrol stations, rounded footpaths, rivers crossed by ramped bridges.
+- Towns: on a green (grassland) stretch the last two highway rings before the next city are towns of one and two storey houses (gable roofs, doors, chimneys, plinths that cope with slopes) with open plots between them. Houses are solid: hit one and you bounce off like a city block (`src/world/town.js`).
 - Highways: rolling hills, tunnels, bridges, interchanges, faster traffic. Highway rings alternate between green
   country and desert.
 - The world repeats a 12-ring pattern outwards (6 city rings, 6 highway rings), so the next city appears after a

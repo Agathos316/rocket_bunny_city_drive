@@ -678,3 +678,23 @@ test('sound: the sound checkbox and volume slider reach the audio manager', () =
   assert.deepEqual(audio.calls.find((c) => c[0] === 'setVolume'), ['setVolume', 0.25]);
   assert.equal(dom.elements.get('vol').value, '25');
 });
+
+test('towns: a house is solid, and a town cell draws its houses', async () => {
+  const { isTown } = await import('../src/world/zones.js');
+  const { townHouses } = await import('../src/world/town.js');
+  let found = null;
+  for (let i = -40; i <= 40 && !found; i++) for (let j = -40; j <= 40 && !found; j++) if (isTown(i, j) && townHouses(i, j).length) found = [i, j];
+  assert.ok(found, 'a town cell with houses exists');
+  const { game } = makeGame({ traffic: 0 });
+  game.chunks._build(found[0], found[1]);
+  const cell = game.chunks.get(found[0], found[1]);
+  assert.ok(cell.houses.length > 0);
+  const h = cell.houses[0];
+  placeAt(game, h.x, h.z, 0);
+  game.player.v = 10;
+  game.collisions.houses(game.player);
+  game.player.syncGrid();
+  const inside = Math.abs(game.player.gx - h.x) < h.hw - 0.5 && Math.abs(game.player.gz - h.z) < h.hd - 0.5;
+  assert.equal(inside, false, 'the car was pushed out of the house');
+  assert.ok(finite(game.player));
+});

@@ -109,3 +109,41 @@ test('terrain: road corridors are carved out below the road, so no grass pokes t
   }
   assert.ok(checked > 10);
 });
+
+test('towns: the last two rings of a green highway, never desert, city or the inner highway', async () => {
+  const { isTown } = await import('../src/world/zones.js');
+  let green = 0;
+  for (let i = -30; i <= 30; i++) for (let j = -30; j <= 30; j++) {
+    if (isTown(i, j)) {
+      green++;
+      assert.equal(isHwy(i, j), true);
+      assert.equal(isDesert(i, j), false);
+      assert.ok(Math.max(Math.abs(i), Math.abs(j)) % 12 >= 10);
+    }
+  }
+  assert.ok(green > 0, 'there should be towns');
+  assert.equal(isTown(0, 0), false);
+  assert.equal(isTown(8, 0), false);
+});
+
+test('towns: houses are one or two storeys, solid boxes that stay clear of every road', async () => {
+  const { isTown } = await import('../src/world/zones.js');
+  const { townHouses } = await import('../src/world/town.js');
+  let houses = 0;
+  const storeys = new Set();
+  for (let i = -30; i <= 30; i++) for (let j = -30; j <= 30; j++) {
+    const list = townHouses(i, j);
+    if (!isTown(i, j)) { assert.equal(list.length, 0); continue; }
+    for (const h of list) {
+      houses++;
+      storeys.add(h.storeys);
+      assert.ok([1, 2].includes(h.storeys));
+      for (const [lineX, lineZ] of [[Math.round(h.x / 100) * 100, Math.round(h.z / 100) * 100]]) {
+        if (roadAt(Math.round(h.x / 100), Math.floor(h.z / 100), 'z')) assert.ok(Math.abs(h.x - lineX) - h.hw > 17, `house ${h.x},${h.z} too close to a north-south road`);
+        if (roadAt(Math.floor(h.x / 100), Math.round(h.z / 100), 'x')) assert.ok(Math.abs(h.z - lineZ) - h.hd > 17, `house ${h.x},${h.z} too close to an east-west road`);
+      }
+    }
+    assert.deepEqual(townHouses(i, j).map((h) => h.x), list.map((h) => h.x), 'deterministic');
+  }
+  assert.ok(houses > 100 && storeys.size === 2, `got ${houses} houses, storeys ${[...storeys]}`);
+});
