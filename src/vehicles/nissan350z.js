@@ -17,7 +17,7 @@ const sp = (v, p) => Math.sign(v) * Math.abs(v) ** p;
  * `n` is the squareness of each section (2 = ellipse, 4 = nearly a rounded rectangle). The ends are closed by a
  * tiny section so the nose and tail round off.
  */
-function loft(stations, n, seg = 36) {
+function loft(stations, n, seg = 64) {
   const st = stations.slice();
   const cap = (s, dz) => { const m = (s[1] + s[2]) / 2; return [s[0] + dz, m - (s[2] - s[1]) * 0.18, m + (s[2] - s[1]) * 0.18, s[3] * 0.3]; };
   st.unshift(cap(st[0], -0.04));
@@ -74,16 +74,16 @@ export function buildNissan350z() {
   add(loft([
     [-2.1, 0.46, 0.84, 0.66], [-2.0, 0.36, 0.95, 0.82], [-1.75, 0.31, 1.0, 0.89], [-1.3, 0.29, 1.03, 0.93],
     [-0.6, 0.29, 1.0, 0.91], [0.3, 0.29, 0.97, 0.9], [1.0, 0.29, 0.92, 0.92], [1.45, 0.3, 0.84, 0.91],
-    [1.85, 0.32, 0.75, 0.85], [2.05, 0.34, 0.68, 0.72], [2.12, 0.4, 0.6, 0.55],
+    [1.85, 0.31, 0.76, 0.87], [2.05, 0.32, 0.69, 0.8], [2.14, 0.38, 0.6, 0.66],
   ], 3.4), paint, 0, 0, 0, 'body');
   // greenhouse (glass), with the roof panel, pillars and a fastback rear
   add(loft([
     [-1.42, 0.97, 1.02, 0.5], [-1.2, 0.97, 1.14, 0.63], [-0.85, 0.97, 1.27, 0.7], [-0.4, 0.97, 1.335, 0.73],
-    [0.1, 0.97, 1.345, 0.73], [0.5, 0.97, 1.27, 0.72], [0.85, 0.96, 1.1, 0.7], [1.0, 0.95, 1.01, 0.64],
+    [0.1, 0.97, 1.345, 0.73], [0.5, 0.97, 1.27, 0.72], [0.85, 0.95, 1.08, 0.7], [1.02, 0.86, 0.93, 0.62],
   ], 2.7), glass, 0, 0, 0, 'glass');
   add(loft([[-0.95, 1.22, 1.285, 0.5], [-0.4, 1.25, 1.348, 0.56], [0.1, 1.25, 1.358, 0.56], [0.5, 1.2, 1.282, 0.55]], 3.5), paint, 0, 0, 0, 'roof');
   for (const s of [-1, 1]) {
-    bar([s * 0.67, 0.99, 0.96], [s * 0.55, 1.23, 0.46], 0.03, paint, 'A pillar');
+    bar([s * 0.67, 0.95, 0.96], [s * 0.55, 1.23, 0.46], 0.03, paint, 'A pillar');
     bar([s * 0.7, 1.0, -0.38], [s * 0.66, 1.22, -0.4], 0.028, trim, 'B pillar');
     bar([s * 0.55, 1.22, -0.88], [s * 0.47, 1.0, -1.38], 0.05, paint, 'C pillar');
     add(box(0.012, 0.64, 0.012), trim, s * 0.915, 0.62, 0.62, 'door shut');                 // door front shut line
@@ -91,20 +91,22 @@ export function buildNissan350z() {
     add(box(0.012, 0.012, 1.1), trim, s * 0.91, 0.28 + 0.07, 0.08, 'sill line');
     add(box(0.03, 0.04, 0.2), trim, s * 0.915, 0.86, -0.3, 'handle');
     add(box(0.1, 0.2, 1.7), trim, s * 0.86, 0.3, 0.05, 'side skirt');
-    add(box(0.16, 0.1, 0.2), paint, s * 0.98, 1.0, 0.78, 'mirror');
+    add(new THREE.SphereGeometry(1, 14, 10).scale(0.07, 0.07, 0.11), paint, s * 0.97, 1.0, 0.78, 'mirror');
     bar([s * 0.8, 0.98, 0.8], [s * 0.92, 1.0, 0.78], 0.02, trim, 'mirror stalk');
     // front: boomerang headlights wrapping onto the wings, indicators, fog lamps, intake
-    add(box(0.42, 0.08, 0.14), lens, s * 0.6, 0.69, 1.93, 'headlight').rotation.set(0.25, s * 0.4, 0);
-    add(box(0.14, 0.05, 0.1), amber, s * 0.8, 0.66, 1.8, 'indicator').rotation.y = s * 0.7;
+    add(new THREE.SphereGeometry(1, 16, 10).scale(0.25, 0.05, 0.12), lens, s * 0.6, 0.71, 1.94, 'headlight').rotation.set(0.1, s * 0.38, 0);
+    add(new THREE.SphereGeometry(1, 12, 8).scale(0.1, 0.05, 0.09), lens, s * 0.8, 0.64, 1.82, 'headlight wrap').rotation.y = s * 0.9;
+    add(box(0.1, 0.045, 0.05), amber, s * 0.72, 0.56, 2.03, 'indicator').rotation.y = s * 0.5;
     add(new THREE.CylinderGeometry(0.07, 0.07, 0.06, 12).rotateX(Math.PI / 2), lens, s * 0.62, 0.4, 2.07, 'fog lamp');
     // rear: boomerang tail lights, exhausts, reflector
     add(box(0.62, 0.1, 0.1), tail, s * 0.55, 0.9, -2.0, 'taillight').rotation.y = -s * 0.28;
     add(box(0.14, 0.18, 0.1), tail, s * 0.8, 0.86, -1.93, 'taillight').rotation.y = -s * 0.7;
     add(new THREE.CylinderGeometry(0.055, 0.055, 0.22, 12).rotateX(Math.PI / 2), rim, s * 0.38, 0.4, -2.08, 'exhaust');
   }
-  add(box(1.04, 0.14, 0.12), trim, 0, 0.56, 2.08, 'grille');
-  add(box(1.3, 0.13, 0.1), trim, 0, 0.4, 2.07, 'intake');
-  add(box(1.6, 0.035, 0.2), trim, 0, 0.31, 2.0, 'splitter');
+  add(box(0.9, 0.09, 0.1), trim, 0, 0.6, 2.1, 'grille');
+  add(box(1.36, 0.17, 0.1), trim, 0, 0.42, 2.09, 'intake');
+  add(box(1.3, 0.025, 0.11), rim, 0, 0.42, 2.1, 'intake bar');
+  add(box(1.56, 0.035, 0.2), trim, 0, 0.3, 2.03, 'splitter');
   add(box(1.45, 0.12, 0.1), trim, 0, 0.46, -2.0, 'rear bumper');
   add(box(1.2, 0.18, 0.1), trim, 0, 0.35, -2.0, 'diffuser');
   add(box(0.5, 0.12, 0.02), rim, 0, 0.68, -2.075, 'plate');
@@ -112,13 +114,13 @@ export function buildNissan350z() {
 
   // interior seen through the glass: floor, dash, two seats with headrests, steering wheel
   add(box(1.25, 0.08, 1.6), seat, 0, 0.93, 0, 'floor');
-  add(box(1.3, 0.2, 0.3), trim, 0, 1.02, 0.78, 'dash');
+  add(box(1.2, 0.12, 0.28), trim, 0, 1.0, 0.42, 'dash');
   for (const s of [-1, 1]) {
     add(box(0.42, 0.1, 0.45), seat, s * 0.33, 1.0, -0.15, 'seat');
     add(box(0.42, 0.3, 0.1), seat, s * 0.33, 1.13, -0.42, 'seat back');
     add(box(0.2, 0.1, 0.08), seat, s * 0.33, 1.3, -0.42, 'headrest');
   }
-  add(new THREE.TorusGeometry(0.13, 0.015, 6, 14).rotateX(-0.9), trim, -0.33, 1.13, 0.52, 'steering wheel');
+  add(new THREE.TorusGeometry(0.13, 0.015, 6, 14).rotateX(-0.9), trim, -0.33, 1.1, 0.3, 'steering wheel');
 
   // wheels: tyre, five-spoke rim, brake disc and caliper, over a dark wheel arch
   const tyre = new THREE.CylinderGeometry(0.33, 0.33, 0.25, 28).rotateZ(Math.PI / 2);
@@ -126,7 +128,7 @@ export function buildNissan350z() {
   const dark = new THREE.CylinderGeometry(0.13, 0.13, 0.27, 24).rotateZ(Math.PI / 2);
   const arch = new THREE.CylinderGeometry(0.39, 0.39, 0.06, 28).rotateZ(Math.PI / 2);
   const disc = new THREE.CylinderGeometry(0.18, 0.18, 0.04, 20).rotateZ(Math.PI / 2);
-  const spoke = new THREE.BoxGeometry(0.03, 0.2, 0.055).translate(0, 0.11, 0);   // one spoke, hub outwards, turned five times
+  const spoke = new THREE.BoxGeometry(0.035, 0.2, 0.075).translate(0, 0.11, 0);   // one spoke, hub outwards, turned five times
   for (const sx of [-1, 1]) {
     for (const z of [-1.32, 1.32]) {
       const x = sx * 0.8;
