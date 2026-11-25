@@ -55,6 +55,7 @@ checkbox and Volume slider are in the settings panel. Sound also pauses while th
 - Cities: bent (not ruler-straight) roads, four road styles, traffic lights, kerbside parking, speed bumps,
   petrol stations, rounded footpaths, rivers crossed by ramped bridges.
 - Towns: on a green (grassland) stretch the last two highway rings before the next city are towns of one and two storey houses (gable roofs, doors, chimneys, plinths that cope with slopes) with open plots between them. Houses are solid: hit one and you bounce off like a city block (`src/world/town.js`).
+- People: walkers (shirts, trousers and skin tones vary) stroll round the footpath of every city block, and in towns someone paces about in the front garden of roughly every second house. Their paths are pure functions of the clock (`src/world/people.js`); the nearest 90 are drawn with instanced meshes and swing arms and legs (`src/traffic/pedestrianManager.js`). City footpaths are out of the car's reach, but running over a person in a town garden is a crash like any other.
 - Highways: rolling hills, tunnels, bridges, interchanges, faster traffic. Highway rings alternate between green
   country and desert.
 - The world repeats a 12-ring pattern outwards (6 city rings, 6 highway rings), so the next city appears after a

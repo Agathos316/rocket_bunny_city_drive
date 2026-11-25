@@ -82,6 +82,13 @@ export const PARKED = {
   refreshSeconds: 0.25,
 };
 
+/** People (traffic/pedestrianManager.js): the nearest ones are drawn; hitting one in a town garden is a crash. */
+export const PEOPLE = {
+  max: 90,
+  radius: 170,                   // grid units
+  hitDistance: 2.4,
+};
+
 export const DRIVE = {
   maxForward: 58,
   maxReverse: 14,

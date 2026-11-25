@@ -698,3 +698,25 @@ test('towns: a house is solid, and a town cell draws its houses', async () => {
   assert.equal(inside, false, 'the car was pushed out of the house');
   assert.ok(finite(game.player));
 });
+
+test('people: strollers walk the city footpaths; a person in a town garden is solid', async () => {
+  const { walkersFor, walkerAt } = await import('../src/world/people.js');
+  const { isTown } = await import('../src/world/zones.js');
+  const { townHouses } = await import('../src/world/town.js');
+  const { game } = makeGame({ traffic: 0 });
+  run(game, 0.5);
+  assert.ok(game.people.active > 0, 'people are drawn around the start');
+  const w = walkersFor(1, 1)[0], a = walkerAt(w, 0, {}), b = walkerAt(w, 10, {});
+  assert.ok(Math.hypot(a.x - b.x, a.z - b.z) > 5, 'they move');
+  assert.deepEqual(walkersFor(1, 1).map((q) => q.shirt), walkersFor(1, 1).map((q) => q.shirt));
+  let found = null;
+  for (let i = -40; i <= 40 && !found; i++) for (let j = -40; j <= 40 && !found; j++) if (isTown(i, j) && walkersFor(i, j).length) found = [i, j];
+  assert.ok(found, 'a town has people');
+  const t = walkerAt(walkersFor(...found)[0], 0, {});
+  placeAt(game, t.x, t.z, 0);
+  game.people.time = 0;
+  game.people.update(0, game.player);
+  assert.equal(game.people.hits(game.player), true, 'driving into a person in a garden is a crash');
+  for (let n = 0; n < 600; n++) game.people.update(DT, game.player);
+  assert.ok(game.people.active <= 90);
+});

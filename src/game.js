@@ -17,6 +17,7 @@ import { TrafficSignals } from './world/signals.js';
 import { ChunkManager } from './world/chunkManager.js';
 import { PlayerCar } from './vehicles/playerCar.js';
 import { TrafficManager } from './traffic/trafficManager.js';
+import { PedestrianManager } from './traffic/pedestrianManager.js';
 import { ParkedManager } from './traffic/parkedManager.js';
 import { Hud } from './ui/hud.js';
 import { SettingsPanel } from './ui/settingsPanel.js';
@@ -40,6 +41,7 @@ export class Game {
     this.player = new PlayerCar(this.scene);
     this.traffic = new TrafficManager(this.scene, { signals: this.signals });
     this.parkedCars = new ParkedManager(this.scene, this.chunks);
+    this.people = new PedestrianManager(this.scene);
     this.collisions = new Collisions(this.chunks);
     this.chase = new ChaseCamera(this.camera);
 
@@ -164,6 +166,7 @@ export class Game {
     this.traffic.update(dt, this.player);
     this.chunks.update(this.player.gx, this.player.gz, RENDER.chunksPerFrame);
     this.parkedCars.update(dt, this.player);
+    this.people.update(dt, this.player);
 
     const p = this.player;
     p.followGround(dt);
@@ -193,7 +196,7 @@ export class Game {
     const wasAirborne = p.y > 0.01, fallSpeed = p.vy;
     p.fall(dt);
     if (wasAirborne && p.y === 0) this.audio.landing(fallSpeed);
-    if (this.collisions.parkedCars(p)) return this.crash();
+    if (this.collisions.parkedCars(p) || this.people.hits(p)) return this.crash();
     if (this.collisions.traffic(p, this.traffic.cars)) return this.crash();
     p.syncGrid();
   }
