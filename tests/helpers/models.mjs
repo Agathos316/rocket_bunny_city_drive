@@ -49,7 +49,7 @@ export async function registerFakeCars() {
   setShowroomLoading(false);          // there are no files to fetch under Node
   const { CAR } = await import('../../src/config.js');
   for (const [name, spec] of Object.entries(CAR.library.cars)) {
-    registerCar(name, spec.kind === 'ferrari' ? fakeFerrari() : spec.raw ? fakeRaw() : fakePipelineCar(spec.paint));
+    registerCar(name, spec.kind === 'ferrari' ? fakeFerrari() : spec.kind === 'procedural' ? fakePipelineCar(spec.paint) : spec.raw ? fakeRaw() : fakePipelineCar(spec.paint));
   }
 }
 

@@ -1,6 +1,6 @@
 # Car models
 
-Every vehicle in the game is one of these glTF files (nothing is built in code). They are loaded before the game
+Every vehicle in the game is one of these glTF files, with one exception: the Nissan 350Z is a simple stylised car built in code (`src/vehicles/nissan350z.js`), because no model file with a clear licence was available. Replace it with a real model by giving its entry in `CAR.library.cars` a `url`. They are loaded before the game
 starts by `src/vehicles/carLibrary.js`; the list is `CAR.library.cars` in `src/config.js`.
 
 `cars/hi/` holds a much more detailed copy (about 40-170k triangles, 1024 px textures) of each pipeline car. It is the car the selector shows and also the car you drive (it is mostly seen up close from behind); it is only

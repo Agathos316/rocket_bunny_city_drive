@@ -412,11 +412,11 @@ test('camera: cars without a cockpit stay in the chase view, and switching to on
   assert.equal(game.chase.mode, 'cockpit');
 });
 
-test('showroom: every pipeline car points at a detailed model file that exists; the Ferrari and Mustang need none', async () => {
+test('showroom: every pipeline car points at a detailed model file that exists; the Ferrari, Mustang and code-built 350Z need none', async () => {
   const { existsSync } = await import('node:fs');
   const { hasShowroom, makeShowroomCar } = await import('../src/vehicles/carLibrary.js');
   for (const [name, spec] of Object.entries(CAR.library.cars)) {
-    const pipeline = !spec.raw && spec.kind !== 'ferrari';
+    const pipeline = !spec.raw && spec.kind !== 'ferrari' && spec.kind !== 'procedural';
     assert.equal(!!spec.showroom, pipeline, `${name}: showroom file only for pipeline cars`);
     if (spec.showroom) assert.ok(existsSync(new URL('../' + spec.showroom, import.meta.url)), `${name}: ${spec.showroom} exists`);
     assert.equal(hasShowroom(name), false);
@@ -719,4 +719,21 @@ test('people: strollers walk the city footpaths; a person in a town garden is so
   assert.equal(game.people.hits(game.player), true, 'driving into a person in a garden is a crash');
   for (let n = 0; n < 600; n++) game.people.update(DT, game.player);
   assert.ok(game.people.active <= 90);
+});
+
+test('nissan 350z: the stylised car builds with sensible size, paint and wheels', async () => {
+  const { buildNissan350z } = await import('../src/vehicles/nissan350z.js');
+  const scene = buildNissan350z();
+  const box = new THREE.Box3().setFromObject(scene), size = box.getSize(new THREE.Vector3());
+  assert.ok(size.z > 4.1 && size.z < 4.6, `length ${size.z}`);
+  assert.ok(size.x > 1.7 && size.x < 2.2, `width ${size.x}`);
+  assert.ok(size.y > 1.2 && size.y < 1.5, `height ${size.y}`);
+  assert.ok(Math.abs(box.min.y) < 0.02, 'stands on the ground');
+  let wheels = 0, paint = 0;
+  scene.traverse((o) => { if (o.name === 'tyre') wheels++; if (o.isMesh && o.material.name === 'z33_paint') paint++; });
+  assert.equal(wheels, 4);
+  assert.ok(paint >= 3);
+  let finiteAll = true;
+  scene.traverse((o) => { if (o.isMesh) for (const v of o.geometry.attributes.position.array) if (!Number.isFinite(v)) finiteAll = false; });
+  assert.ok(finiteAll);
 });

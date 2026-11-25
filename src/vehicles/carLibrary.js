@@ -21,6 +21,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
 import { CAR } from '../config.js';
+import { buildNissan350z } from './nissan350z.js';
 
 const library = new Map();    // name -> template scene (never modified after registration)
 const showroom = new Map();   // name -> the much more detailed version used by the car selector (loaded on demand)
@@ -42,6 +43,7 @@ export async function loadCarLibrary() {
   loader.setDRACOLoader(draco);
   try {
     await Promise.all(Object.entries(CAR.library.cars).map(async ([name, spec]) => {
+      if (spec.kind === 'procedural') { registerCar(name, prepareCar(buildNissan350z(), spec)); return; }   // built in code, nothing to load
       const gltf = await loader.loadAsync(spec.url);
       registerCar(name, spec.kind === 'ferrari' ? prepareFerrari(gltf.scene) : prepareCar(gltf.scene, spec));
     }));
